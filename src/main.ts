@@ -52,8 +52,28 @@ async function main() {
   
   // Track transaction count for TPS calculation
   let txCount = 0;
-  let totalTxCount = 0;
+  let localTxCount = 0; // Transactions counted locally since page load
   let blockCount = 0;
+  let chainStatsBaseTotal = 0; // Baseline total from chain stats API
+  
+  // Fetch chain stats on startup to get historical total transactions
+  const fetchChainStats = async () => {
+    const stats = await dataSource.getChainStats();
+    if (stats && stats.totalTransactions > 0) {
+      // Update base total (API gives us total historical count)
+      chainStatsBaseTotal = stats.totalTransactions;
+      // Total = base + local transactions counted since load
+      const newTotal = chainStatsBaseTotal + localTxCount;
+      if (totalTxsEl) totalTxsEl.textContent = newTotal.toLocaleString();
+      console.log(`Updated chain stats: ${chainStatsBaseTotal.toLocaleString()} historical + ${localTxCount.toLocaleString()} local = ${newTotal.toLocaleString()} total`);
+    }
+  };
+  
+  // Start fetching chain stats immediately
+  fetchChainStats();
+  
+  // Refresh chain stats periodically (every 5 minutes)
+  setInterval(fetchChainStats, 5 * 60 * 1000);
   
   // Handle legend info popup clicks
   document.addEventListener('showLegendInfo', ((e: CustomEvent) => {
@@ -116,8 +136,9 @@ async function main() {
     if (txCountEl) txCountEl.textContent = '--';
     if (tpsEl) tpsEl.textContent = '--';
     txCount = 0;
-    totalTxCount = 0;
+    localTxCount = 0;
     blockCount = 0;
+    chainStatsBaseTotal = 0;
     
     // Clear the tx hash scroll
     txHashScroll.clear();
@@ -150,8 +171,17 @@ async function main() {
       if (blockHeightEl) blockHeightEl.textContent = latestBlock.number.toLocaleString();
       if (blockCountEl) blockCountEl.textContent = '1';
       if (txCountEl) txCountEl.textContent = latestBlock.transactions.length.toString();
-      totalTxCount = latestBlock.transactions.length;
-      if (totalTxsEl) totalTxsEl.textContent = totalTxCount.toLocaleString();
+      
+      // Fetch chain stats for the new chain and update total
+      const stats = await dataSource.getChainStats();
+      if (stats && stats.totalTransactions > 0) {
+        chainStatsBaseTotal = stats.totalTransactions;
+      }
+      
+      // Count this block's transactions locally
+      localTxCount = latestBlock.transactions.length;
+      const displayTotal = chainStatsBaseTotal + localTxCount;
+      if (totalTxsEl) totalTxsEl.textContent = displayTotal.toLocaleString();
     }
     
     // Hide loading
@@ -374,9 +404,10 @@ async function main() {
       if (blockCountEl) blockCountEl.textContent = blockCount.toLocaleString();
       if (txCountEl) txCountEl.textContent = block.transactions.length.toString();
       
-      // Update total transactions
-      totalTxCount += block.transactions.length;
-      if (totalTxsEl) totalTxsEl.textContent = totalTxCount.toLocaleString();
+      // Update total transactions: increment local count and calculate total
+      localTxCount += block.transactions.length;
+      const displayTotal = chainStatsBaseTotal + localTxCount;
+      if (totalTxsEl) totalTxsEl.textContent = displayTotal.toLocaleString();
       
       // Play block sound and big event sound for blocks with many transactions
       if (musicEnabled) {
@@ -407,8 +438,11 @@ async function main() {
       if (blockHeightEl) blockHeightEl.textContent = latestBlock.number.toLocaleString();
       if (blockCountEl) blockCountEl.textContent = '1';
       if (txCountEl) txCountEl.textContent = latestBlock.transactions.length.toString();
-      totalTxCount = latestBlock.transactions.length;
-      if (totalTxsEl) totalTxsEl.textContent = totalTxCount.toLocaleString();
+      
+      // Update total transactions: count this block's transactions locally
+      localTxCount = latestBlock.transactions.length;
+      const displayTotal = chainStatsBaseTotal + localTxCount;
+      if (totalTxsEl) totalTxsEl.textContent = displayTotal.toLocaleString();
     }
 
     // Hide loading, show legend

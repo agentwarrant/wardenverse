@@ -29,6 +29,12 @@ export interface Transaction {
   type: TransactionType;
 }
 
+export interface ChainStats {
+  totalTransactions: number;
+  totalBlocks: number;
+  lastUpdated: number;
+}
+
 type BlockCallback = (block: Block) => void;
 type TransactionCallback = (tx: Transaction) => void;
 type ChainChangeCallback = (chain: Chain) => void;
@@ -322,5 +328,48 @@ export class BlockchainDataSource {
 
   isConnected(): boolean {
     return this.connected;
+  }
+
+  /**
+   * Fetch chain statistics including total transactions
+   * Tries multiple API endpoints to get total transaction count
+   */
+  async getChainStats(): Promise<ChainStats | null> {
+    const statsApiUrl = this.currentChain.statsApiUrl;
+    
+    if (!statsApiUrl) {
+      console.log('No stats API URL configured for this chain');
+      return null;
+    }
+
+    try {
+      // Try Blockscout-style API endpoint for stats
+      const response = await fetch(`${statsApiUrl}/stats`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        console.log(`Stats API returned ${response.status}, trying alternative...`);
+        return null;
+      }
+
+      const data = await response.json();
+      
+      // Blockscout API returns stats in this format
+      const stats: ChainStats = {
+        totalTransactions: data.transactions_count || data.total_transactions || 0,
+        totalBlocks: data.blocks_count || data.total_blocks || 0,
+        lastUpdated: Date.now(),
+      };
+
+      console.log(`Chain stats from API: ${stats.totalTransactions.toLocaleString()} total transactions`);
+      return stats;
+    } catch (error) {
+      console.error('Error fetching chain stats:', error);
+      return null;
+    }
   }
 }
