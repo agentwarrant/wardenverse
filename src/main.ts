@@ -7,6 +7,7 @@ import { Engine } from './core/Engine';
 import { BlockchainDataSource } from './data/BlockchainDataSource';
 import { TransactionType } from './data/BlockchainDataSource';
 import { MusicSystem } from './core/MusicSystem';
+import { TxHashScroll } from './ui/TxHashScroll';
 
 async function main() {
   const canvas = document.getElementById('main-canvas') as HTMLCanvasElement;
@@ -31,6 +32,9 @@ async function main() {
   // House rhythm plays continuously, synth notes triggered by blockchain events
   const musicSystem = new MusicSystem();
   let musicEnabled = true;  // Music ON by default
+  
+  // Initialize the transaction hash scroll
+  const txHashScroll = new TxHashScroll();
   
   // Add music toggle button to header
   const header = document.getElementById('header');
@@ -99,6 +103,9 @@ async function main() {
 
     dataSource.onTransaction((tx) => {
       engine.addTransaction(tx);
+      
+      // Add to the tx hash scroll
+      txHashScroll.addTransaction(tx.hash, tx.type);
       
       // Play transaction sound based on type
       if (musicEnabled) {
