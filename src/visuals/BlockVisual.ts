@@ -67,6 +67,9 @@ export class BlockVisual {
   private isDestroying: boolean = false;
   private destroyProgress: number = 0;
   private destroyDuration: number = 800; // ms to melt
+  private lastGridX: number = -1;
+  private lastGridY: number = -1;
+  private lastGridSize: number = 0;
 
   constructor(block: Block, world: PixelWorld, screenWidth: number, screenHeight: number) {
     this.block = block;
@@ -122,6 +125,72 @@ export class BlockVisual {
     return this.isDestroying && this.destroyProgress >= 1;
   }
 
+  /**
+   * Render planet pixels into the physics grid so dust can collide with them.
+   * This creates a circular area of PLANET type pixels at the block's position.
+   */
+  private updatePlanetPixels(): void {
+    const gridPos = this.world.screenToGrid(this.x, this.y);
+    const gridSize = Math.floor(this.size / PIXEL_SIZE / 2); // radius in grid units
+    
+    // Skip if too small or destroying
+    if (gridSize < 2 || this.isDestroying) {
+      this.clearPlanetPixels();
+      return;
+    }
+    
+    // Only update if position or size changed significantly
+    if (Math.abs(gridPos.x - this.lastGridX) < 2 && 
+        Math.abs(gridPos.y - this.lastGridY) < 2 && 
+        Math.abs(gridSize - this.lastGridSize) < 1) {
+      return;
+    }
+    
+    // Clear old pixels
+    this.clearPlanetPixels();
+    
+    // Draw circular planet in the grid
+    for (let dy = -gridSize; dy <= gridSize; dy++) {
+      for (let dx = -gridSize; dx <= gridSize; dx++) {
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist <= gridSize) {
+          const gx = gridPos.x + dx;
+          const gy = gridPos.y + dy;
+          // Only set if within bounds and empty (don't overwrite other particles)
+          const currentPixel = this.world.getPixel(gx, gy);
+          if (currentPixel === PixelType.EMPTY) {
+            this.world.setPixel(gx, gy, PixelType.PLANET);
+          }
+        }
+      }
+    }
+    
+    this.lastGridX = gridPos.x;
+    this.lastGridY = gridPos.y;
+    this.lastGridSize = gridSize;
+  }
+
+  /**
+   * Clear planet pixels from the physics grid.
+   */
+  private clearPlanetPixels(): void {
+    if (this.lastGridSize < 2 || this.lastGridX < 0 || this.lastGridY < 0) return;
+    
+    // Clear the circular area
+    for (let dy = -this.lastGridSize - 1; dy <= this.lastGridSize + 1; dy++) {
+      for (let dx = -this.lastGridSize - 1; dx <= this.lastGridSize + 1; dx++) {
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist <= this.lastGridSize + 1) {
+          const gx = this.lastGridX + dx;
+          const gy = this.lastGridY + dy;
+          if (this.world.getPixel(gx, gy) === PixelType.PLANET) {
+            this.world.setPixel(gx, gy, PixelType.EMPTY);
+          }
+        }
+      }
+    }
+  }
+
   private createBirthExplosion(): void {
     const explosionRadius = 15 + this.targetSize / 2;
     this.world.createExplosion(this.x, this.y, explosionRadius, 1 + this.activityLevel);
@@ -143,6 +212,11 @@ export class BlockVisual {
     if (this.isDestroying) {
       this.destroyProgress += dt * 1000 / this.destroyDuration;
       
+      // Clear planet pixels when destroying
+      if (this.destroyProgress < 0.1) {
+        this.clearPlanetPixels();
+      }
+      
       // Spawn melting particles during destruction
       const meltIntensity = 1 - this.destroyProgress;
       if (Math.random() < 0.3 * dt * 60 * meltIntensity) {
@@ -162,6 +236,9 @@ export class BlockVisual {
     }
     
     this.pulsePhase += dt * (2 + this.activityLevel);
+    
+    // Update planet pixels in the physics grid for dust collision
+    this.updatePlanetPixels();
     
     // Spawn ambient particles
     if (Math.random() < 0.02 * dt * 60 && this.size > 5) {

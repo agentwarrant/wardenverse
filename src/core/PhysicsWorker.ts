@@ -191,7 +191,42 @@ function updatePhysics(dt: number): void {
       if (props.gravity > 0) {
         const belowIdx = (y + 1) * width + x;
         
-        if (y < height - 1 && canMove(pixelType, idx, belowIdx)) {
+        // Check for planet collision - slide around instead of passing through
+        if (y < height - 1 && pixels[belowIdx] === PixelType.PLANET) {
+          // Try to slide left or right around the planet
+          const dir = Math.random() > 0.5 ? 1 : -1;
+          const leftIdx = y * width + (x - 1);
+          const rightIdx = y * width + (x + 1);
+          const leftBelowIdx = (y + 1) * width + (x - 1);
+          const rightBelowIdx = (y + 1) * width + (x + 1);
+          
+          // Try to slide in the chosen direction
+          if (dir === 1) {
+            // Try right first, then left
+            if (x + 1 < width && pixels[rightIdx] === PixelType.EMPTY && canMove(pixelType, idx, rightIdx)) {
+              swapPixels(idx, rightIdx);
+            } else if (x - 1 >= 0 && pixels[leftIdx] === PixelType.EMPTY && canMove(pixelType, idx, leftIdx)) {
+              swapPixels(idx, leftIdx);
+            } else if (x + 1 < width && y + 1 < height && pixels[rightBelowIdx] === PixelType.EMPTY) {
+              // Slide diagonally down-right
+              swapPixels(idx, rightBelowIdx);
+            } else if (x - 1 >= 0 && y + 1 < height && pixels[leftBelowIdx] === PixelType.EMPTY) {
+              // Slide diagonally down-left
+              swapPixels(idx, leftBelowIdx);
+            }
+          } else {
+            // Try left first, then right
+            if (x - 1 >= 0 && pixels[leftIdx] === PixelType.EMPTY && canMove(pixelType, idx, leftIdx)) {
+              swapPixels(idx, leftIdx);
+            } else if (x + 1 < width && pixels[rightIdx] === PixelType.EMPTY && canMove(pixelType, idx, rightIdx)) {
+              swapPixels(idx, rightIdx);
+            } else if (x - 1 >= 0 && y + 1 < height && pixels[leftBelowIdx] === PixelType.EMPTY) {
+              swapPixels(idx, leftBelowIdx);
+            } else if (x + 1 < width && y + 1 < height && pixels[rightBelowIdx] === PixelType.EMPTY) {
+              swapPixels(idx, rightBelowIdx);
+            }
+          }
+        } else if (y < height - 1 && canMove(pixelType, idx, belowIdx)) {
           swapPixels(idx, belowIdx);
         } else if (y < height - 1) {
           const dir = Math.random() > 0.5 ? 1 : -1;
@@ -320,6 +355,8 @@ function updatePhysics(dt: number): void {
 function canMove(fromType: PixelType, fromIdx: number, toIdx: number): boolean {
   if (toIdx < 0 || toIdx >= pixels.length) return false;
   const toType = pixels[toIdx];
+  // Dust collides with PLANET (doesn't pass through)
+  if (fromType === PixelType.DUST && toType === PixelType.PLANET) return false;
   return toType === PixelType.EMPTY || toType === PixelType.DUST || toType === PixelType.GAS;
 }
 
