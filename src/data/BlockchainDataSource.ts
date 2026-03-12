@@ -120,12 +120,19 @@ export class BlockchainDataSource {
     // Determine transaction type
     let type: 'transfer' | 'contract' | 'token' | 'inference' = 'transfer';
     
+    // Check if this is a native coin transfer (WARD)
+    const hasValue = tx.value > 0n;
+    
     if (tx.to === null) {
       type = 'contract'; // Contract creation
     } else if (tx.to.toLowerCase() === PROOF_OF_INFERENCE_ADDRESS) {
       type = 'inference'; // Proof Of Inference contract call
+    } else if (hasValue) {
+      // Native coin transfer (WARD) - show as token with floating coins
+      type = 'token';
     } else if (tx.data && tx.data.length > 2) {
-      type = 'token'; // Likely a token transfer or contract call
+      // Contract call without value (likely ERC-20 approve or similar)
+      type = 'contract';
     }
     
     return {

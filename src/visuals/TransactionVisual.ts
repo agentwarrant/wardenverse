@@ -165,6 +165,23 @@ export class TransactionVisual {
       : [PixelType.SPARK];
     
     this.world.setPixelScreen(px, py, types[Math.floor(Math.random() * types.length)]);
+    
+    // For token transfers, spawn additional floating TOKEN particles
+    // These will float in place (TOKEN type has gravity: 0)
+    if (this.tx.type === 'token' && Math.random() > 0.5) {
+      const floatX = t.x + (Math.random() - 0.5) * 20;
+      const floatY = t.y + (Math.random() - 0.5) * 20;
+      this.world.setPixelScreen(floatX, floatY, PixelType.TOKEN);
+      
+      // Spawn a few more TOKEN particles for a richer effect
+      if (Math.random() > 0.7) {
+        for (let i = 0; i < 3; i++) {
+          const offsetX = (Math.random() - 0.5) * 30;
+          const offsetY = (Math.random() - 0.5) * 30;
+          this.world.setPixelScreen(t.x + offsetX, t.y + offsetY, PixelType.TOKEN);
+        }
+      }
+    }
   }
 
   private createExitExplosion(): void {
@@ -172,13 +189,24 @@ export class TransactionVisual {
     this.world.createExplosion(this.x, this.y, radius, this.intensity);
     
     if (this.tx.type === 'token') {
-      for (let i = 0; i < 6; i++) {
+      // Spawn many floating TOKEN particles for coin transfer effect
+      for (let i = 0; i < 15; i++) {
         const angle = Math.random() * Math.PI * 2;
-        const dist = Math.random() * 10;
+        const dist = Math.random() * 25;
         this.world.setPixelScreen(
           this.x + Math.cos(angle) * dist,
           this.y + Math.sin(angle) * dist,
           PixelType.TOKEN
+        );
+      }
+      // Add extra sparkles
+      for (let i = 0; i < 10; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.random() * 35;
+        this.world.setPixelScreen(
+          this.x + Math.cos(angle) * dist,
+          this.y + Math.sin(angle) * dist,
+          PixelType.SPARK
         );
       }
     }
