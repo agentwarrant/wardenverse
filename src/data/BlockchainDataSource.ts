@@ -184,7 +184,7 @@ export class BlockchainDataSource {
     // Get the proof of inference address for current chain (if any)
     const proofOfInferenceAddress = this.currentChain.contracts?.proofOfInference?.toLowerCase();
     
-    // Check if this is a native coin transfer
+    // Check if this is a native coin transfer (WARD sent)
     const hasValue = tx.value > 0n;
     const hasData = tx.data && tx.data.length > 2;
     
@@ -227,8 +227,15 @@ export class BlockchainDataSource {
     }
     
     // Additional visualizations for special types
+    
+    // ANY WARD transfer (value > 0) shows green token comet
+    // This reflects WARD being sent - whether as gas, payment, or token send
+    if (hasValue) {
+      types.push('token');
+    }
+    
+    // ERC-20 token transfer - add green token comet (in addition to native if any)
     if (isERC20Transfer) {
-      // ERC-20 transfer - add green token comet (in addition to base)
       types.push('token');
     }
     
