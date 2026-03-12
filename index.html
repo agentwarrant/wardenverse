@@ -365,6 +365,309 @@
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+    /* Mobile Responsive Styles */
+    @media (max-width: 768px) {
+      #header {
+        padding: 8px12px;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      #warden-logo {
+        height: 28px;
+      }
+      #logo-tagline {
+        display: none;
+      }
+      #header h1 {
+        font-size: 14px;
+      }
+      #stats {
+        gap: 8px;
+        margin-left: 0;
+        width: 100%;
+        justify-content: space-between;
+        margin-top: 8px;
+      }
+      .stat {
+        padding: 4px 8px;
+        flex: 1;
+        min-width: 0;
+      }
+      .stat-value {
+        font-size: 12px;
+      }
+      .stat-label {
+        font-size: 7px;
+      }
+      #overlay {
+        bottom: 10px;
+        left: 10px;
+        right: 10px;
+        max-width: none;
+        padding: 10px 12px;
+        font-size: 10px;
+      }
+      #overlay h3 {
+        font-size: 11px;
+      }
+      #controls {
+        bottom: 10px;
+        right: 10px;
+        min-width: 160px;
+      }
+      #controls-header {
+        padding: 8px 10px;
+      }
+      #controls-header h4 {
+        font-size: 7px;
+      }
+      #controls-body {
+        padding: 10px;
+      }
+      .control-item {
+        padding: 4px 6px;
+        margin-bottom: 6px;
+        gap: 8px;
+      }
+      .pixel-key {
+        width: 28px;
+        height: 24px;
+        font-size: 6px;
+      }
+      .pixel-key.mouse {
+        width: 32px;
+      }
+      .pixel-key.action {
+        width: 36px;
+      }
+      .control-action {
+        font-size: 7px;
+      }
+      #controls-hint {
+        font-size: 6px;
+        margin-top: 6px;
+        padding-top: 6px;
+      }
+      .control-preview {
+        display: none !important;
+      }
+      #loading h2 {
+        font-size: 20px;
+      }
+      #loading p {
+        font-size: 12px;
+      }
+      .spinner {
+        width: 40px;
+        height: 40px;
+      }
+    }
+    /* Extra small mobile styles */
+    @media (max-width: 480px) {
+      #header {
+        padding: 6px 10px;
+      }
+      #warden-logo {
+        height: 24px;
+      }
+      #stats {
+        gap: 4px;
+      }
+      .stat {
+        padding: 3px 6px;
+      }
+      .stat-value {
+        font-size: 10px;
+      }
+      .stat-label {
+        font-size: 6px;
+      }
+      #overlay {
+        padding: 8px 10px;
+        font-size: 9px;
+        border-radius: 8px;
+      }
+      #overlay h3 {
+        font-size: 10px;
+        margin-bottom: 6px;
+      }
+      #controls {
+        min-width: 140px;
+      }
+      .pixel-key {
+        width: 24px;
+        height: 20px;
+        font-size: 5px;
+      }
+      .pixel-key.mouse {
+        width: 28px;
+      }
+      .pixel-key.action {
+        width: 32px;
+      }
+      .control-action {
+        font-size: 6px;
+      }
+    }
+    /* Landscape mobile adjustments */
+    @media (max-width: 896px) and (orientation: landscape) {
+      #header {
+        padding: 6px 15px;
+        flex-wrap: nowrap;
+      }
+      #stats {
+        width: auto;
+        margin-top: 0;
+      }
+      #overlay {
+        max-width: 250px;
+        padding: 10px 14px;
+      }
+      #controls {
+        min-width: 180px;
+      }
+    }
+    /* Mobile styles for dynamically created elements */
+    @media (max-width: 768px) {
+      #chain-label {
+        font-size: 10px !important;
+        padding: 4px 10px !important;
+      }
+      #music-toggle {
+        padding: 4px 10px !important;
+        font-size: 10px !important;
+      }
+      #press-here-animation {
+        font-size: 8px !important;
+        padding: 3px 6px !important;
+      }
+      #tx-hash-scroll-container {
+        bottom: 10px !important;
+        right: 10px !important;
+        left: 10px !important;
+      }
+      #tx-hash-scroll-frame {
+        max-width: 100% !important;
+      }
+      #tx-hash-scroll-header .terminal-title {
+        font-size: 6px !important;
+      }
+      #tx-hash-scroll-content {
+        min-height: 80px !important;
+        max-height: 160px !important;
+      }
+      .tx-hash-entry {
+        font-size: 7px !important;
+        padding: 4px 2px !important;
+      }
+      #info-popup {
+        left: 10px !important;
+        right: 10px !important;
+        transform: translate(0, -50%) scale(0.9) !important;
+      }
+      .game-panel {
+        min-width: auto !important;
+        max-width: 100% !important;
+        width: 100% !important;
+      }
+      .game-header {
+        padding: 12px 14px !important;
+      }
+      .game-title {
+        font-size: 9px !important;
+      }
+      .game-content {
+        padding: 14px !important;
+      }
+      .stat-row {
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+      }
+      .stat-box {
+        padding: 10px !important;
+      }
+      .stat-label {
+        font-size: 7px !important;
+      }
+      .stat-value {
+        font-size: 11px !important;
+      }
+      .stat-value.hash {
+        font-size: 9px !important;
+      }
+      .type-badge {
+        font-size: 7px !important;
+        padding: 4px 8px !important;
+      }
+      .explorer-link {
+        font-size: 7px !important;
+        padding: 10px 14px !important;
+      }
+    }
+    @media (max-width: 480px) {
+      #chain-label {
+        display: none !important;
+      }
+      #music-toggle {
+        padding: 3px 8px !important;
+        font-size: 8px !important;
+      }
+      #press-here-animation {
+        display: none !important;
+      }
+      #tx-hash-scroll-content {
+        min-height: 60px !important;
+        max-height: 120px !important;
+      }
+      .tx-hash-entry {
+        font-size: 6px !important;
+      }
+      .game-panel {
+        border-width: 2px !important;
+      }
+      .game-header {
+        padding: 10px 12px !important;
+      }
+      .game-title {
+        font-size: 8px !important;
+        gap: 8px !important;
+      }
+      .game-close {
+        font-size: 12px !important;
+        padding: 4px 8px !important;
+      }
+      .game-content {
+        padding: 10px !important;
+      }
+      .stat-box {
+        padding: 8px !important;
+      }
+      .stat-label {
+        font-size: 6px !important;
+        margin-bottom: 4px !important;
+      }
+      .stat-value {
+        font-size: 10px !important;
+      }
+      .stat-value.hash {
+        font-size: 8px !important;
+      }
+      .type-badge {
+        font-size: 6px !important;
+        padding: 3px 6px !important;
+      }
+      .explorer-link {
+        font-size: 6px !important;
+        padding: 8px 10px !important;
+      }
+      .tx-list {
+        max-height: 100px !important;
+        padding: 8px !important;
+      }
+      .tx-list a {
+        font-size: 8px !important;
+      }
+    }
   </style>
 </head>
 <body>

@@ -323,13 +323,14 @@
 }
 
 /* Responsive adjustments */
-@media (max-width: 600px) {
+@media (max-width: 768px) {
   #legend {
     top: auto;
-    bottom: 80px;
+    bottom: 90px;
     right: 10px;
     left: 10px;
     min-width: auto;
+    max-width: calc(100vw - 20px);
   }
   
   .legend-text {
@@ -339,5 +340,69 @@
   #legend h4 {
     font-size: 8px;
     padding: 10px 12px;
+  }
+  
+  .legend-item {
+    padding: 8px 12px;
+    gap: 10px;
+  }
+  
+  .legend-sprite {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .legend-footer {
+    padding: 8px 12px;
+  }
+  
+  .legend-footer span {
+    font-size: 7px;
+  }
+}
+
+@media (max-width: 480px) {
+  #legend {
+    bottom: 70px;
+    right: 8px;
+    left: 8px;
+  }
+  
+  .legend-text {
+    font-size: 7px;
+  }
+  
+  #legend h4 {
+    font-size: 7px;
+    padding: 8px 10px;
+  }
+  
+  .legend-item {
+    padding: 6px 10px;
+    gap: 8px;
+  }
+  
+  .legend-sprite {
+    width: 18px;
+    height: 18px;
+  }
+  
+  .legend-footer {
+    padding: 6px 10px;
+  }
+  
+  .legend-footer span {
+    font-size: 6px;
+  }
+}
+
+/* Landscape mobile - keep legend on side but smaller */
+@media (max-width: 896px) and (orientation: landscape) {
+  #legend {
+    top: 65px;
+    bottom: auto;
+    right: 10px;
+    left: auto;
+    max-width: 160px;
   }
 }
