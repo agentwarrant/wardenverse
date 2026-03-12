@@ -5,6 +5,7 @@
 
 import { Engine } from './core/Engine';
 import { BlockchainDataSource } from './data/BlockchainDataSource';
+import { MusicSystem } from './core/MusicSystem';
 
 async function main() {
   const canvas = document.getElementById('main-canvas') as HTMLCanvasElement;
@@ -24,6 +25,48 @@ async function main() {
   
   // Initialize the rendering engine
   const engine = new Engine(canvas);
+  
+  // Initialize the music system (keygen-style chiptune)
+  const musicSystem = new MusicSystem();
+  let musicEnabled = false;
+  
+  // Add music toggle button to header
+  const header = document.getElementById('header');
+  if (header) {
+    const musicBtn = document.createElement('button');
+    musicBtn.id = 'music-toggle';
+    musicBtn.innerHTML = '🔇 Music';
+    musicBtn.style.cssText = `
+      background: rgba(30, 30, 45, 0.8);
+      border: 1px solid rgba(100, 100, 150, 0.3);
+      color: #e0e0e0;
+      padding: 6px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      font-family: inherit;
+      transition: all 0.2s ease;
+      margin-left: 10px;
+    `;
+    musicBtn.onmouseover = () => {
+      musicBtn.style.background = 'rgba(50, 50, 70, 0.9)';
+    };
+    musicBtn.onmouseout = () => {
+      musicBtn.style.background = 'rgba(30, 30, 45, 0.8)';
+    };
+    musicBtn.onclick = async () => {
+      if (musicEnabled) {
+        musicSystem.stop();
+        musicBtn.innerHTML = '🔇 Music';
+        musicEnabled = false;
+      } else {
+        await musicSystem.start();
+        musicBtn.innerHTML = '🔊 Music';
+        musicEnabled = true;
+      }
+    };
+    header.appendChild(musicBtn);
+  }
   
   try {
     // Connect to Warden chain
