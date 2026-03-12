@@ -40,6 +40,11 @@ async function main() {
   // Initialize the transaction hash scroll with info popup
   const txHashScroll = new TxHashScroll(infoPopup);
   
+  // Handle legend info popup clicks
+  document.addEventListener('showLegendInfo', ((e: CustomEvent) => {
+    infoPopup.showLegendInfo(e.detail);
+  }) as EventListener);
+  
   // Function to start music (handles browser autoplay policy)
   const startMusic = async () => {
     if (musicStarted) return;  // Already started

@@ -130,12 +130,12 @@
       padding: 16px 20px;
       border-radius: 12px;
       font-size: 11px;
-      border: 1px solid rgba(96, 165, 250, 0.2);
+      border: 1px solid rgba(167, 139, 250, 0.3);
       backdrop-filter: blur(10px);
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     }
     #legend h4 {
-      color: #60a5fa;
+      color: #a78bfa;
       margin-bottom: 12px;
       font-size: 13px;
       text-transform: uppercase;
@@ -155,16 +155,25 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      margin-bottom: 5px;
+      margin-bottom: 8px;
+      padding: 4px 6px;
+      margin-left: -6px;
+      border-radius: 6px;
+      transition: background 0.2s ease;
+    }
+    .legend-item:hover {
+      background: rgba(167, 139, 250, 0.1);
     }
     .legend-color {
       width: 16px;
       height: 16px;
       border-radius: 4px;
       box-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
+      flex-shrink: 0;
     }
     .legend-text {
-      color: #bbb;
+      color: #e0e0e0;
+      font-size: 12px;
     }
     #controls {
       position: absolute;
@@ -259,46 +268,24 @@
       </div>
       <div id="legend" style="display: none;">
         <h4>Visual Guide</h4>
-        <div class="legend-section">
-          <div class="legend-section-title">Celestial Bodies</div>
-          <div class="legend-item">
-            <div class="legend-color" style="background: radial-gradient(circle at 30% 30%, #fef3c7, #fbbf24, #78350f);"></div>
-            <span class="legend-text">Block (Star/Planet)</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-color" style="background: linear-gradient(135deg, #60a5fa, #3b82f6);"></div>
-            <span class="legend-text">Transaction (Comet)</span>
-          </div>
+        <div class="legend-item" style="cursor: pointer;" onclick="document.dispatchEvent(new CustomEvent('showLegendInfo', {detail: 'block'}))">
+          <div class="legend-color" style="background: radial-gradient(circle at 30% 30%, #fef3c7, #fbbf24, #78350f);"></div>
+          <span class="legend-text">Block</span>
         </div>
-        <div class="legend-section">
-          <div class="legend-section-title">Transaction Types</div>
-          <div class="legend-item">
-            <div class="legend-color" style="background: linear-gradient(135deg, #34d399, #10b981); box-shadow: 0 0 10px rgba(52, 211, 153, 0.5);"></div>
-            <span class="legend-text">Token Transfer</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-color" style="background: linear-gradient(135deg, #f472b6, #ec4899);"></div>
-            <span class="legend-text">Contract Call</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-color" style="background: linear-gradient(135deg, #60a5fa, #3b82f6);"></div>
-            <span class="legend-text">Regular Transfer</span>
-          </div>
+        <div class="legend-item" style="cursor: pointer;" onclick="document.dispatchEvent(new CustomEvent('showLegendInfo', {detail: 'transaction'}))">
+          <div class="legend-color" style="background: linear-gradient(135deg, #a78bfa, #8b5cf6);"></div>
+          <span class="legend-text">Transaction</span>
         </div>
-        <div class="legend-section">
-          <div class="legend-section-title">Particle Effects</div>
-          <div class="legend-item">
-            <div class="legend-color" style="background: linear-gradient(135deg, #ff9966, #ff6633);"></div>
-            <span class="legend-text">Fire / Explosion</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-color" style="background: linear-gradient(135deg, #a78bfa, #8b5cf6);"></div>
-            <span class="legend-text">Plasma / Energy</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-color" style="background: linear-gradient(135deg, #67e8f9, #22d3ee);"></div>
-            <span class="legend-text">Lightning</span>
-          </div>
+        <div class="legend-item" style="cursor: pointer;" onclick="document.dispatchEvent(new CustomEvent('showLegendInfo', {detail: 'token'}))">
+          <div class="legend-color" style="background: linear-gradient(135deg, #34d399, #10b981); box-shadow: 0 0 10px rgba(52, 211, 153, 0.5);"></div>
+          <span class="legend-text">Token Transfer</span>
+        </div>
+        <div class="legend-item" style="cursor: pointer;" onclick="document.dispatchEvent(new CustomEvent('showLegendInfo', {detail: 'contract'}))">
+          <div class="legend-color" style="background: linear-gradient(135deg, #f472b6, #ec4899);"></div>
+          <span class="legend-text">Contract Call</span>
+        </div>
+        <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(100, 100, 150, 0.2);">
+          <span style="color: #666; font-size: 10px; font-style: italic;">Click any item for more info</span>
         </div>
       </div>
       <div id="controls" style="display: none;">

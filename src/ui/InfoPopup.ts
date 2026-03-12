@@ -313,6 +313,59 @@ export class InfoPopup {
     return Number(num).toLocaleString();
   }
 
+  showLegendInfo(type: string): void {
+    const legendData: { [key: string]: { title: string; color: string; description: string } } = {
+      block: {
+        title: 'Block',
+        color: '#fbbf24',
+        description: 'A block is a collection of transactions on the Warden blockchain. In Wardenverse, blocks appear as glowing golden stars or planets. The size reflects the number of transactions inside. Click on any block to see its details.'
+      },
+      transaction: {
+        title: 'Transaction',
+        color: '#a78bfa',
+        description: 'A transaction is an action on the blockchain - sending tokens, calling a smart contract, or other operations. Transactions appear as violet comets streaking across the universe, leaving particle trails in their wake.'
+      },
+      token: {
+        title: 'Token Transfer',
+        color: '#34d399',
+        description: 'Token transfers are transactions that move tokens between addresses. They appear as bright green comets with intense sparkle effects and larger particle trails, representing the flow of value through the network.'
+      },
+      contract: {
+        title: 'Contract Call',
+        color: '#f472b6',
+        description: 'Contract calls are transactions that interact with smart contracts. They appear as pink comets with plasma and lightning effects, representing the computational energy of decentralized applications.'
+      }
+    };
+
+    const info = legendData[type];
+    if (!info) return;
+
+    this.container.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 style="color: ${info.color}; font-size: 18px; font-weight: 600; margin: 0;">
+          ${info.title}
+        </h3>
+        <button id="close-popup" style="
+          background: rgba(255, 255, 255, 0.1);
+          border: none;
+          color: #888;
+          font-size: 20px;
+          cursor: pointer;
+          padding: 4px 10px;
+          border-radius: 6px;
+          transition: all 0.2s;
+        ">×</button>
+      </div>
+      
+      <div style="color: #c0c0c0; font-size: 14px; line-height: 1.6;">
+        ${info.description}
+      </div>
+    `;
+
+    this.attachCloseHandler();
+    this.show();
+  }
+
   destroy(): void {
     if (this.container.parentNode) {
       this.container.parentNode.removeChild(this.container);
