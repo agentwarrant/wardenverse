@@ -47,6 +47,13 @@ async function main() {
   let musicEnabled = false;  // Will be set to true on first interaction
   let musicStarted = false;  // Track if we've successfully started
   
+  // Set up background click sound
+  engine.setOnBackgroundClick(() => {
+    if (musicEnabled) {
+      musicSystem.playClickSound();
+    }
+  });
+  
   // Initialize the transaction hash scroll with info popup
   const txHashScroll = new TxHashScroll(infoPopup);
   

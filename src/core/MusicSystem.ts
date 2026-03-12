@@ -486,6 +486,43 @@ export class MusicSystem {
     });
   }
 
+  /**
+   * Play a click sound for background interactions
+   * Uses pentatonic scale notes with a short plucky decay
+   * Designed to blend with the house music rhythm
+   */
+  public playClickSound(): void {
+    if (!this.isPlaying || !this.audioContext || !this.synthGain) return;
+    
+    // Pick a random note from the pentatonic scale (matches BLOCK_NOTES)
+    const clickNote = this.BLOCK_NOTES[Math.floor(Math.random() * this.BLOCK_NOTES.length)];
+    
+    // Play a short plucky sound - fits the house music vibe
+    this.playSynth({
+      frequency: clickNote,
+      type: 'triangle',
+      gain: 0.25,
+      attack: 0.005,  // Very fast attack
+      decay: 0.08,    // Short decay for click feel
+      release: 0.05,
+      filterFreq: 3000  // Bright filter for clarity
+    });
+    
+    // Add a subtle higher harmonic for depth (plays slightly after)
+    setTimeout(() => {
+      if (!this.isPlaying || !this.audioContext || !this.synthGain) return;
+      this.playSynth({
+        frequency: clickNote * 2,  // Octave up
+        type: 'sine',
+        gain: 0.1,
+        attack: 0.005,
+        decay: 0.05,
+        release: 0.03,
+        filterFreq: 4000
+      });
+    }, 10);
+  }
+
   public getIsPlaying(): boolean {
     return this.isPlaying;
   }

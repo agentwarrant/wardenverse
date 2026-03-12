@@ -49,6 +49,7 @@ export class Engine {
   private initialized: boolean = false;
   private infoPopup: InfoPopup;
   private onBlockClick: ((block: Block) => void) | null = null;
+  private onBackgroundClick: (() => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -204,6 +205,11 @@ export class Engine {
       // No hit - create explosion as before
       this.world.createExplosion(x, y, 40, 2);
       
+      // Notify background click
+      if (this.onBackgroundClick) {
+        this.onBackgroundClick();
+      }
+      
       for (let i = 0; i < 30; i++) {
         const px = x + (Math.random() - 0.5) * 60;
         const py = y + (Math.random() - 0.5) * 60;
@@ -344,6 +350,13 @@ export class Engine {
    */
   setOnBlockClick(callback: (block: Block) => void): void {
     this.onBlockClick = callback;
+  }
+
+  /**
+   * Set a callback for when the background is clicked (not on a block/transaction).
+   */
+  setOnBackgroundClick(callback: () => void): void {
+    this.onBackgroundClick = callback;
   }
 
   /**
