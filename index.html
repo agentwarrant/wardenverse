@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/styles/legend.css">
   <style>
     * {
       margin: 0;
@@ -122,59 +123,6 @@
       color: #999;
       line-height: 1.5;
     }
-    #legend {
-      position: absolute;
-      top: 70px;
-      right: 20px;
-      background: rgba(15, 15, 25, 0.95);
-      padding: 16px 20px;
-      border-radius: 12px;
-      font-size: 11px;
-      border: 1px solid rgba(167, 139, 250, 0.3);
-      backdrop-filter: blur(10px);
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    }
-    #legend h4 {
-      color: #a78bfa;
-      margin-bottom: 12px;
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      font-weight: 600;
-    }
-    .legend-section {
-      margin-bottom: 12px;
-    }
-    .legend-section-title {
-      color: #666;
-      font-size: 10px;
-      text-transform: uppercase;
-      margin-bottom: 6px;
-    }
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 8px;
-      padding: 4px 6px;
-      margin-left: -6px;
-      border-radius: 6px;
-      transition: background 0.2s ease;
-    }
-    .legend-item:hover {
-      background: rgba(167, 139, 250, 0.1);
-    }
-    .legend-color {
-      width: 16px;
-      height: 16px;
-      border-radius: 4px;
-      box-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
-      flex-shrink: 0;
-    }
-    .legend-text {
-      color: #e0e0e0;
-      font-size: 12px;
-    }
     #controls {
       position: absolute;
       bottom: 20px;
@@ -230,7 +178,6 @@
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
-    }
   </style>
 </head>
 <body>
@@ -269,23 +216,115 @@
       <div id="legend" style="display: none;">
         <h4>Visual Guide</h4>
         <div class="legend-item" style="cursor: pointer;" onclick="document.dispatchEvent(new CustomEvent('showLegendInfo', {detail: 'block'}))">
-          <div class="legend-color" style="background: radial-gradient(circle at 30% 30%, #fef3c7, #fbbf24, #78350f);"></div>
+          <div class="legend-sprite block-sprite">
+            <!-- Pixel-art star/planet sprite (8x8 scaled to 24x24) -->
+            <svg width="24" height="24" viewBox="0 0 8 8" style="image-rendering: pixelated;">
+              <!-- Outer glow -->
+              <rect x="3" y="0" width="2" height="1" fill="#fbbf24"/>
+              <rect x="2" y="1" width="1" height="1" fill="#fbbf24"/>
+              <rect x="5" y="1" width="1" height="1" fill="#fbbf24"/>
+              <rect x="1" y="2" width="1" height="1" fill="#fcd34d"/>
+              <rect x="6" y="2" width="1" height="1" fill="#fcd34d"/>
+              <!-- Core -->
+              <rect x="2" y="2" width="1" height="1" fill="#fde68a"/>
+              <rect x="5" y="2" width="1" height="1" fill="#fde68a"/>
+              <rect x="2" y="3" width="4" height="1" fill="#fef3c7"/>
+              <rect x="3" y="4" width="2" height="1" fill="#fef3c7"/>
+              <!-- Bottom -->
+              <rect x="2" y="5" width="1" height="1" fill="#fde68a"/>
+              <rect x="5" y="5" width="1" height="1" fill="#fde68a"/>
+              <rect x="3" y="6" width="2" height="1" fill="#fcd34d"/>
+            </svg>
+            <!-- Glow effect -->
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 32px; height: 32px; background: radial-gradient(circle, rgba(251, 191, 36, 0.4) 0%, transparent 70%); pointer-events: none;"></div>
+          </div>
           <span class="legend-text">Block</span>
         </div>
         <div class="legend-item" style="cursor: pointer;" onclick="document.dispatchEvent(new CustomEvent('showLegendInfo', {detail: 'transaction'}))">
-          <div class="legend-color" style="background: linear-gradient(135deg, #a78bfa, #8b5cf6);"></div>
+          <div class="legend-sprite tx-sprite">
+            <!-- Pixel-art comet sprite -->
+            <svg width="24" height="24" viewBox="0 0 8 8" style="image-rendering: pixelated;">
+              <!-- Trail -->
+              <rect x="0" y="3" width="1" height="1" fill="rgba(167, 139, 250, 0.3)"/>
+              <rect x="1" y="3" width="1" height="1" fill="rgba(167, 139, 250, 0.5)"/>
+              <rect x="2" y="3" width="1" height="1" fill="rgba(167, 139, 250, 0.7)"/>
+              <!-- Comet head -->
+              <rect x="3" y="2" width="1" height="1" fill="#a78bfa"/>
+              <rect x="4" y="2" width="1" height="1" fill="#a78bfa"/>
+              <rect x="3" y="3" width="1" height="1" fill="#c4b5fd"/>
+              <rect x="4" y="3" width="1" height="1" fill="#c4b5fd"/>
+              <rect x="5" y="3" width="1" height="1" fill="#a78bfa"/>
+              <rect x="3" y="4" width="1" height="1" fill="#ddd6fe"/>
+              <rect x="4" y="4" width="1" height="1" fill="#ffffff"/>
+              <rect x="5" y="4" width="1" height="1" fill="#c4b5fd"/>
+              <rect x="3" y="5" width="1" height="1" fill="#a78bfa"/>
+              <rect x="4" y="5" width="1" height="1" fill="#a78bfa"/>
+            </svg>
+            <!-- Glow effect -->
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 28px; height: 28px; background: radial-gradient(circle, rgba(167, 139, 250, 0.4) 0%, transparent 70%); pointer-events: none;"></div>
+          </div>
           <span class="legend-text">Transaction</span>
         </div>
         <div class="legend-item" style="cursor: pointer;" onclick="document.dispatchEvent(new CustomEvent('showLegendInfo', {detail: 'token'}))">
-          <div class="legend-color" style="background: linear-gradient(135deg, #34d399, #10b981); box-shadow: 0 0 10px rgba(52, 211, 153, 0.5);"></div>
+          <div class="legend-sprite token-sprite">
+            <!-- Pixel-art token/coin sprite -->
+            <svg width="24" height="24" viewBox="0 0 8 8" style="image-rendering: pixelated;">
+              <!-- Coin body -->
+              <rect x="2" y="1" width="4" height="1" fill="#10b981"/>
+              <rect x="1" y="2" width="1" height="1" fill="#10b981"/>
+              <rect x="2" y="2" width="4" height="1" fill="#34d399"/>
+              <rect x="6" y="2" width="1" height="1" fill="#059669"/>
+              <rect x="1" y="3" width="1" height="1" fill="#059669"/>
+              <rect x="2" y="3" width="2" height="1" fill="#6ee7b7"/>
+              <rect x="4" y="3" width="2" height="1" fill="#34d399"/>
+              <rect x="6" y="3" width="1" height="1" fill="#10b981"/>
+              <rect x="1" y="4" width="1" height="1" fill="#10b981"/>
+              <rect x="2" y="4" width="2" height="1" fill="#34d399"/>
+              <rect x="4" y="4" width="2" height="1" fill="#6ee7b7"/>
+              <rect x="6" y="4" width="1" height="1" fill="#059669"/>
+              <rect x="2" y="5" width="4" height="1" fill="#34d399"/>
+              <rect x="6" y="5" width="1" height="1" fill="#10b981"/>
+              <rect x="2" y="6" width="4" height="1" fill="#10b981"/>
+              <!-- Sparkle -->
+              <rect x="3" y="3" width="1" height="1" fill="#ffffff" style="animation: pixel-sprite-pulse 1s ease-in-out infinite;"/>
+            </svg>
+            <!-- Glow effect -->
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 32px; height: 32px; background: radial-gradient(circle, rgba(52, 211, 153, 0.5) 0%, transparent 70%); pointer-events: none;"></div>
+          </div>
           <span class="legend-text">Token Transfer</span>
         </div>
         <div class="legend-item" style="cursor: pointer;" onclick="document.dispatchEvent(new CustomEvent('showLegendInfo', {detail: 'contract'}))">
-          <div class="legend-color" style="background: linear-gradient(135deg, #f472b6, #ec4899);"></div>
+          <div class="legend-sprite contract-sprite">
+            <!-- Pixel-art contract/spark sprite -->
+            <svg width="24" height="24" viewBox="0 0 8 8" style="image-rendering: pixelated;">
+              <!-- Spark burst -->
+              <rect x="3" y="0" width="2" height="1" fill="#f472b6"/>
+              <rect x="2" y="1" width="1" height="1" fill="#f472b6"/>
+              <rect x="3" y="1" width="2" height="1" fill="#ec4899"/>
+              <rect x="5" y="1" width="1" height="1" fill="#f472b6"/>
+              <rect x="1" y="2" width="1" height="1" fill="#ec4899"/>
+              <rect x="2" y="2" width="4" height="1" fill="#f9a8d4"/>
+              <rect x="6" y="2" width="1" height="1" fill="#ec4899"/>
+              <rect x="0" y="3" width="1" height="1" fill="#f472b6"/>
+              <rect x="1" y="3" width="2" height="1" fill="#f9a8d4"/>
+              <rect x="3" y="3" width="2" height="1" fill="#ffffff"/>
+              <rect x="5" y="3" width="2" height="1" fill="#f9a8d4"/>
+              <rect x="7" y="3" width="1" height="1" fill="#f472b6"/>
+              <rect x="1" y="4" width="1" height="1" fill="#ec4899"/>
+              <rect x="2" y="4" width="4" height="1" fill="#f9a8d4"/>
+              <rect x="6" y="4" width="1" height="1" fill="#ec4899"/>
+              <rect x="2" y="5" width="1" height="1" fill="#f472b6"/>
+              <rect x="3" y="5" width="2" height="1" fill="#ec4899"/>
+              <rect x="5" y="5" width="1" height="1" fill="#f472b6"/>
+              <rect x="3" y="6" width="2" height="1" fill="#db2777"/>
+            </svg>
+            <!-- Glow effect -->
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 32px; height: 32px; background: radial-gradient(circle, rgba(244, 114, 182, 0.5) 0%, transparent 70%); pointer-events: none;"></div>
+          </div>
           <span class="legend-text">Contract Call</span>
         </div>
-        <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(100, 100, 150, 0.2);">
-          <span style="color: #666; font-size: 10px; font-style: italic;">Click any item for more info</span>
+        <div class="legend-footer">
+          <span>Click any item for more info</span>
         </div>
       </div>
       <div id="controls" style="display: none;">
