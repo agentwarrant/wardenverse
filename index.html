@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Wardenverse - Visual Block Explorer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <style>
     * {
       margin: 0;
@@ -30,6 +33,22 @@
       gap: 20px;
       z-index: 100;
       backdrop-filter: blur(10px);
+    }
+    #logo-container {
+      display: flex;
+      align-items: center;
+    }
+    #warden-logo {
+      height: 40px;
+      width: auto;
+      filter: brightness(1);
+    }
+    #logo-tagline {
+      font-size: 12px;
+      color: #888;
+      margin-left: 12px;
+      font-style: italic;
+      letter-spacing: 0.5px;
     }
     #header h1 {
       font-size: 20px;
@@ -107,19 +126,21 @@
       position: absolute;
       top: 70px;
       right: 20px;
-      background: rgba(20, 20, 30, 0.9);
-      padding: 14px 18px;
-      border-radius: 10px;
+      background: rgba(15, 15, 25, 0.95);
+      padding: 16px 20px;
+      border-radius: 12px;
       font-size: 11px;
-      border: 1px solid rgba(100, 100, 150, 0.25);
+      border: 1px solid rgba(96, 165, 250, 0.2);
       backdrop-filter: blur(10px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     }
     #legend h4 {
       color: #60a5fa;
-      margin-bottom: 10px;
-      font-size: 12px;
+      margin-bottom: 12px;
+      font-size: 13px;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 1px;
+      font-weight: 600;
     }
     .legend-section {
       margin-bottom: 12px;
@@ -200,42 +221,16 @@
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
-    #performance {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(20, 20, 30, 0.9);
-      padding: 10px 16px;
-      border-radius: 10px;
-      font-size: 11px;
-      color: #666;
-      border: 1px solid rgba(100, 100, 150, 0.25);
-      backdrop-filter: blur(10px);
-      display: flex;
-      gap: 15px;
-    }
-    #performance .good { color: #34d399; }
-    #performance .ok { color: #fbbf24; }
-    #performance .bad { color: #ef4444; }
-    .perf-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .perf-label {
-      color: #888;
-    }
-    .perf-value {
-      font-weight: 600;
-      color: #60a5fa;
     }
   </style>
 </head>
 <body>
   <div id="app">
     <div id="header">
-      <h1>✦ Wardenverse</h1>
+      <div id="logo-container">
+        <img src="/wardenverse-logo.png" alt="Wardenverse" id="warden-logo" />
+        <span id="logo-tagline">A vibe explorer for the agentic era</span>
+      </div>
       <div id="stats">
         <div class="stat">
           <span class="stat-value" id="block-height">--</span>
@@ -308,8 +303,12 @@
       </div>
       <div id="controls" style="display: none;">
         <div class="control-item">
-          <span class="control-key">Left Click</span>
-          <span>Create explosion</span>
+          <span class="control-key">Click Block</span>
+          <span>View block info</span>
+        </div>
+        <div class="control-item">
+          <span class="control-key">Click Tx Hash</span>
+          <span>View transaction info</span>
         </div>
         <div class="control-item">
           <span class="control-key">Right Click</span>
@@ -320,16 +319,7 @@
           <span>Particle spray</span>
         </div>
       </div>
-      <div id="performance">
-        <div class="perf-item">
-          <span class="perf-label">FPS:</span>
-          <span class="perf-value" id="fps">--</span>
-        </div>
-        <div class="perf-item">
-          <span class="perf-label">Resolution:</span>
-          <span class="perf-value" id="resolution">--</span>
-        </div>
-      </div>
+      
     </div>
   </div>
   <script type="module" src="/src/main.ts"></script>
