@@ -1,9 +1,11 @@
 /**
  * WebWorker for physics simulation
  * Noita-inspired pixel physics with explosive particle effects
+ * Uses PIXEL_SIZE multiplier for performance (physics grid is smaller than screen)
  */
 
 import { PixelType, PIXEL_PROPERTIES } from './PixelTypes';
+import { AMBIENT_PARTICLE_DENSITY, TRAIL_SPAWN_RATE, EXPLOSION_PARTICLE_MULTIPLIER }from './Config';
 
 // Worker message types
 type InitMessage = { type: 'init'; width: number; height: number };
@@ -35,31 +37,34 @@ function initialize(w: number, h: number): void {
   // Initialize with empty space
   pixels.fill(PixelType.EMPTY);
   
-  // Add dense ambient particles for crowded feel
+  // Add ambient particles
   addAmbientParticles();
 }
 
 function addAmbientParticles(): void {
-  // Add many more stars for crowded feel
-  for (let i = 0; i < 500; i++) {
+  // Scale particle count by grid size
+  const particleCount = Math.floor(width * height * AMBIENT_PARTICLE_DENSITY);
+  for (let i = 0; i < particleCount; i++) {
     const x = Math.floor(Math.random() * width);
     const y = Math.floor(Math.random() * height);
     const idx = y * width + x;
     
     // More varied ambient particles
     const rand = Math.random();
-    if (rand > 0.85) {
-      pixels[idx] = PixelType.STAR;
-    } else if (rand > 0.7) {
-      pixels[idx] = PixelType.DUST;
-    } else if (rand > 0.65) {
-      pixels[idx] = PixelType.EMBER; // Subtle ember particles
+    if (pixels[idx] === PixelType.EMPTY) {
+      if (rand > 0.9) {
+        pixels[idx] = PixelType.STAR;
+      } else if (rand > 0.7) {
+        pixels[idx] = PixelType.DUST;
+      } else if (rand > 0.5) {
+        pixels[idx] = PixelType.EMBER;
+      }
     }
   }
 }
 
 function createExplosion(centerX: number, centerY: number, radius: number, intensity: number): void {
-  const particleCount = Math.floor(intensity * 80);
+  const particleCount = Math.floor(intensity * EXPLOSION_PARTICLE_MULTIPLIER);
   
   for (let i = 0; i < particleCount; i++) {
     const angle = Math.random() * Math.PI * 2;
@@ -106,11 +111,11 @@ function createLightning(startX: number, startY: number, endX: number, endY: num
   const dx = endX - startX;
   const dy = endY - startY;
   const dist = Math.sqrt(dx * dx + dy * dy);
-  const steps = Math.floor(dist / 3);
+  const steps = Math.max(1, Math.floor(dist / 3));
   
   for (let i = 0; i < steps; i++) {
     const progress = i / steps;
-    const jitter = (Math.random() - 0.5) * 10;
+    const jitter = (Math.random() - 0.5) * 8;
     x = Math.floor(startX + dx * progress + jitter);
     y = Math.floor(startY + dy * progress + jitter);
     
@@ -119,10 +124,10 @@ function createLightning(startX: number, startY: number, endX: number, endY: num
     const idx = y * width + x;
     pixels[idx] = PixelType.LIGHTNING;
     
-    // Add branching
-    if (Math.random() > 0.85) {
+    // Add branching (less frequently for performance)
+    if (Math.random() > 0.9) {
       const branchAngle = Math.random() * Math.PI * 2;
-      const branchLen = 5 + Math.random() * 10;
+      const branchLen = 3 + Math.random() * 6;
       for (let j = 0; j < branchLen; j++) {
         const bx = Math.floor(x + Math.cos(branchAngle) * j);
         const by = Math.floor(y + Math.sin(branchAngle) * j);
@@ -208,8 +213,8 @@ function updatePhysics(dt: number): void {
         }
       }
       
-      // Spread (liquids, gases)
-      if (props.spread > 0 && Math.random() < props.spread * 0.4) {
+      // Spread (liquids, gases) - reduced rate for performance
+      if (props.spread > 0 && Math.random() < props.spread * 0.25) {
         const dir = Math.random() > 0.5 ? 1 : -1;
         const sideIdx = y * width + (x + dir);
         if (x + dir >= 0 && x + dir < width && pixels[sideIdx] === PixelType.EMPTY) {
@@ -217,8 +222,8 @@ function updatePhysics(dt: number): void {
         }
       }
       
-      // Trail particles
-      if (props.trail && props.trailType !== null && Math.random() < 0.15) {
+      // Trail particles - reduced rate for performance
+      if (props.trail && props.trailType !== null && Math.random() < TRAIL_SPAWN_RATE * 0.5) {
         const trailOffset = Math.floor(Math.random() * 3) - 1;
         const tx = x + trailOffset;
         const ty = y + 1;
@@ -249,33 +254,14 @@ function updatePhysics(dt: number): void {
         }
       }
       
-      // Emissive lighting - brighten nearby empty pixels
-      if (props.emissive && props.glowIntensity > 0) {
-        const glowRadius = Math.floor(props.glowIntensity * 2);
-        for (let gy = -glowRadius; gy <= glowRadius; gy++) {
-          for (let gx = -glowRadius; gx <= glowRadius; gx++) {
-            const nx = x + gx;
-            const ny = y + gy;
-            if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-              const nIdx = ny * width + nx;
-              if (pixels[nIdx] === PixelType.EMPTY && Math.random() > 0.7) {
-                // Subtle glow on empty cells
-                if (Math.random() > 0.95) {
-                  pixels[nIdx] = PixelType.ENERGY;
-                }
-              }
-            }
-          }
-        }
-      }
-      
       // Lifetime decay
       if (props.lifetime > 0) {
         pixelData[dataIdx + 3] += dt * 1000;
         if (pixelData[dataIdx + 3] >= props.lifetime) {
-          // Death explosion
+          // Death explosion (reduced particle count for performance)
           if (props.explodeOnDeath !== null && props.explodeCount > 0) {
-            for (let i = 0; i < props.explodeCount; i++) {
+            const count = Math.min(props.explodeCount, 3); // Cap at3 for performance
+            for (let i = 0; i < count; i++) {
               const angle = Math.random() * Math.PI * 2;
               const dist = 1 + Math.random() * 2;
               const dx = Math.floor(Math.cos(angle) * dist);
@@ -286,9 +272,8 @@ function updatePhysics(dt: number): void {
                 const nIdx = ny * width + nx;
                 if (pixels[nIdx] === PixelType.EMPTY) {
                   pixels[nIdx] = props.explodeOnDeath;
-                  // Give death particles some velocity
-                  pixelData[nIdx * 4] = dx * 0.5;
-                  pixelData[nIdx * 4 + 1] = dy * 0.5;
+                  pixelData[nIdx * 4] = dx * 0.3;
+                  pixelData[nIdx * 4 + 1] = dy * 0.3;
                 }
               }
             }
@@ -299,8 +284,8 @@ function updatePhysics(dt: number): void {
     }
   }
   
-  // Randomly add ambient particles to keep things crowded
-  if (Math.random() < 0.05) {
+  // Randomly add ambient particles (reduced rate for performance)
+  if (Math.random() < 0.02) {
     const x = Math.floor(Math.random() * width);
     const y = Math.floor(Math.random() * height);
     const idx = y * width + x;
@@ -314,8 +299,8 @@ function updatePhysics(dt: number): void {
     }
   }
   
-  // Occasionally create lightning between stars
-  if (Math.random() < 0.001) {
+  // Occasionally create lightning between stars (reduced frequency)
+  if (Math.random() < 0.0005) {
     // Find two random stars
     const stars: Array<{x: number, y: number}> = [];
     for (let i = 0; i < pixels.length && stars.length < 2; i++) {

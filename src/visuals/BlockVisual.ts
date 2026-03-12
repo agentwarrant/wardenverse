@@ -21,17 +21,24 @@ export class BlockVisual {
   private particles: Array<{ x: number; y: number; vx: number; vy: number; life: number; type: string }> = [];
   private ringParticles: Array<{ angle: number; dist: number; speed: number; size: number }> = [];
   private activityLevel: number = 0;
+  private screenWidth: number = 800;
+  private screenHeight: number = 600;
 
   constructor(block: Block, world: PixelWorld) {
     this.block = block;
     this.world = world;
     this.birthTime = Date.now();
     
-    // Position based on block number (create a spiral pattern)
+    // Get screen dimensions
+    const res = world.getScreenResolution();
+    this.screenWidth = res.width;
+    this.screenHeight = res.height;
+    
+    // Position based on block number (create a spiral pattern) - using screen coordinates
     const angle = (block.number * 0.1) % (Math.PI * 2);
     const radius = 100 + (block.number % 10) * 30;
-    this.x = world['width'] / 2 + Math.cos(angle) * radius + (Math.random() - 0.5) * 80;
-    this.y = world['height'] / 2 + Math.sin(angle) * radius + (Math.random() - 0.5) * 80;
+    this.x = this.screenWidth / 2 + Math.cos(angle) * radius + (Math.random() - 0.5) * 80;
+    this.y = this.screenHeight / 2 + Math.sin(angle) * radius + (Math.random() - 0.5) * 80;
     this.targetX = this.x;
     this.targetY = this.y;
     
@@ -53,26 +60,26 @@ export class BlockVisual {
     // Big birth explosion proportional to block size
     const explosionRadius = 30 + this.targetSize;
     this.world.createExplosion(
-      Math.floor(this.x),
-      Math.floor(this.y),
+      this.x,
+      this.y,
       explosionRadius,
       1 + this.activityLevel
     );
     
-    // Create sparkles burst
-    this.createSparkles(30 + Math.floor(this.activityLevel * 20), 'birth');
+    // Create sparkles burst (reduced count for performance)
+    this.createSparkles(20 + Math.floor(this.activityLevel * 10), 'birth');
     
-    // Spawn pixels directly in the world
-    for (let i = 0; i < 50 + this.activityLevel * 30; i++) {
+    // Spawn pixels directly in the world (using screen coordinates)
+    for (let i = 0; i < 30 + this.activityLevel * 15; i++) {
       const angle = Math.random() * Math.PI * 2;
       const dist = 10 + Math.random() * explosionRadius;
-      const px = Math.floor(this.x + Math.cos(angle) * dist);
-      const py = Math.floor(this.y + Math.sin(angle) * dist);
+      const px = this.x + Math.cos(angle) * dist;
+      const py = this.y + Math.sin(angle) * dist;
       
       // Varied particle types for explosion
-      const types = [PixelType.SPARK, PixelType.FIRE, PixelType.PLASMA, PixelType.ENERGY, PixelType.DEBRIS];
+      const types = [PixelType.SPARK, PixelType.FIRE, PixelType.PLASMA, PixelType.ENERGY];
       const type = types[Math.floor(Math.random() * types.length)];
-      this.world.setPixel(px, py, type);
+      this.world.setPixelScreen(px, py, type);
     }
   }
 
@@ -139,21 +146,21 @@ export class BlockVisual {
     if (this.activityLevel > 0.3 && Math.random() < 0.02 * dt * 60) {
       const angle = Math.random() * Math.PI * 2;
       const dist = this.size + Math.random() * 10;
-      const px = Math.floor(this.x + Math.cos(angle) * dist);
-      const py = Math.floor(this.y + Math.sin(angle) * dist);
-      this.world.setPixel(px, py, Math.random() > 0.5 ? PixelType.FIRE : PixelType.PLASMA);
+      const px = this.x + Math.cos(angle) * dist;
+      const py = this.y + Math.sin(angle) * dist;
+      this.world.setPixelScreen(px, py, Math.random() > 0.5 ? PixelType.FIRE : PixelType.PLASMA);
     }
   }
 
   private spawnWorldParticle(): void {
     const angle = Math.random() * Math.PI * 2;
     const dist = this.size + 5 + Math.random() * 20;
-    const px = Math.floor(this.x + Math.cos(angle) * dist);
-    const py = Math.floor(this.y + Math.sin(angle) * dist);
+    const px = this.x + Math.cos(angle) * dist;
+    const py = this.y + Math.sin(angle) * dist;
     
     const types = [PixelType.SPARK, PixelType.EMBER, PixelType.DUST];
     const type = types[Math.floor(Math.random() * types.length)];
-    this.world.setPixel(px, py, type);
+    this.world.setPixelScreen(px, py, type);
   }
 
   render(ctx: CanvasRenderingContext2D): void {

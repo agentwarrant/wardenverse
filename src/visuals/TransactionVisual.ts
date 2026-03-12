@@ -20,10 +20,17 @@ export class TransactionVisual {
   private exploded: boolean = false;
   private size: number = 8;
   private intensity: number = 1;
+  private screenWidth: number = 800;
+  private screenHeight: number = 600;
 
   constructor(tx: Transaction, world: PixelWorld) {
     this.tx = tx;
     this.world = world;
+    
+    // Get screen dimensions
+    const res = world.getScreenResolution();
+    this.screenWidth = res.width;
+    this.screenHeight = res.height;
     
     // Scale based on transaction value/type
     if (tx.type === 'token') {
@@ -34,30 +41,30 @@ export class TransactionVisual {
       this.intensity = 1.5;
     }
     
-    // Start from a random edge
+    // Start from a random edge (using screen coordinates)
     const edge = Math.floor(Math.random() * 4);
     switch (edge) {
       case 0: // Top
-        this.x = Math.random() * world['width'];
+        this.x = Math.random() * this.screenWidth;
         this.y = 0;
         this.vx = (Math.random() - 0.5) * 3;
         this.vy = 2 + Math.random() * 3;
         break;
       case 1: // Right
-        this.x = world['width'];
-        this.y = Math.random() * world['height'];
+        this.x = this.screenWidth;
+        this.y = Math.random() * this.screenHeight;
         this.vx = -(2 + Math.random() * 3);
         this.vy = (Math.random() - 0.5) * 3;
         break;
       case 2: // Bottom
-        this.x = Math.random() * world['width'];
-        this.y = world['height'];
+        this.x = Math.random() * this.screenWidth;
+        this.y = this.screenHeight;
         this.vx = (Math.random() - 0.5) * 3;
         this.vy = -(2 + Math.random() * 3);
         break;
       case 3: // Left
         this.x = 0;
-        this.y = Math.random() * world['height'];
+        this.y = Math.random() * this.screenHeight;
         this.vx = 2 + Math.random() * 3;
         this.vy = (Math.random() - 0.5) * 3;
         break;
@@ -83,16 +90,16 @@ export class TransactionVisual {
     }
     this.trail = this.trail.filter(t => t.life > 0);
     
-    // Spawn pixel particles in the world
+    // Spawn pixel particles in the world (using screen coordinates)
     this.particleTimer += dt;
-    if (this.particleTimer > 0.02) {
+    if (this.particleTimer > 0.03) { // Reduced rate for performance
       this.particleTimer = 0;
       this.spawnParticles();
     }
     
     // Decrease life when off screen
-    if (this.x < -50 || this.x > this.world['width'] + 50 ||
-        this.y < -50 || this.y > this.world['height'] + 50) {
+    if (this.x < -50 || this.x > this.screenWidth + 50 ||
+        this.y < -50 || this.y > this.screenHeight + 50) {
       this.life -= dt * 2;
       
       // Create explosion when leaving
@@ -103,22 +110,22 @@ export class TransactionVisual {
     }
     
     // Limit trail length
-    const maxTrail = this.tx.type === 'token' ? 40 : this.tx.type === 'contract' ? 30 : 25;
+    const maxTrail = this.tx.type === 'token' ? 30 : this.tx.type === 'contract' ? 20 : 15;
     while (this.trail.length > maxTrail) {
       this.trail.shift();
     }
   }
 
   private spawnParticles(): void {
-    // Spawn particles along the trail
-    const particleCount = this.tx.type === 'token' ? 5 : this.tx.type === 'contract' ? 3 : 2;
+    // Spawn particles along the trail (reduced count for performance)
+    const particleCount = this.tx.type === 'token' ? 3 : this.tx.type === 'contract' ? 2 : 1;
     
     for (let i = 0; i < particleCount; i++) {
-      const trailIdx = Math.floor(Math.random() * Math.min(this.trail.length, 10));
+      const trailIdx = Math.floor(Math.random() * Math.min(this.trail.length, 8));
       if (trailIdx < this.trail.length) {
         const t = this.trail[trailIdx];
-        const px = Math.floor(t.x + (Math.random() - 0.5) * 6);
-        const py = Math.floor(t.y + (Math.random() - 0.5) * 6);
+        const px = t.x + (Math.random() - 0.5) * 6;
+        const py = t.y + (Math.random() - 0.5) * 6;
         
         let pixelType: PixelType;
         switch (this.tx.type) {
@@ -132,29 +139,29 @@ export class TransactionVisual {
             pixelType = Math.random() > 0.7 ? PixelType.COMET : PixelType.SPARK;
         }
         
-        this.world.setPixel(px, py, pixelType);
+        this.world.setPixelScreen(px, py, pixelType);
       }
     }
   }
 
   private createExitExplosion(): void {
     // Create an explosion at the exit point
-    const explosionRadius = this.tx.type === 'token' ? 30 : this.tx.type === 'contract' ? 25 : 15;
+    const explosionRadius = this.tx.type === 'token' ? 25 : this.tx.type === 'contract' ? 20 : 12;
     this.world.createExplosion(
-      Math.floor(this.x),
-      Math.floor(this.y),
+      this.x,
+      this.y,
       explosionRadius,
       this.intensity
     );
     
-    // For token transfers, create extra sparkle
+    // For token transfers, create extra sparkle (reduced count)
     if (this.tx.type === 'token') {
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < 10; i++) {
         const angle = Math.random() * Math.PI * 2;
-        const dist = Math.random() * 20;
-        const px = Math.floor(this.x + Math.cos(angle) * dist);
-        const py = Math.floor(this.y + Math.sin(angle) * dist);
-        this.world.setPixel(px, py, PixelType.TOKEN);
+        const dist = Math.random() * 15;
+        const px = this.x + Math.cos(angle) * dist;
+        const py = this.y + Math.sin(angle) * dist;
+        this.world.setPixelScreen(px, py, PixelType.TOKEN);
       }
     }
   }

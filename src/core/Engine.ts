@@ -1,12 +1,14 @@
 /**
  * Core rendering engine with Noita-style pixel physics simulation
  * Uses WebWorker for off-main-thread physics computation
+ * PIXEL_SIZE = 4 for performance (each game pixel is 4x4 screen pixels)
  */
 
 import { PixelWorld } from './PixelWorld';
 import { PixelType } from './PixelTypes';
 import { BlockVisual } from '../visuals/BlockVisual';
 import { TransactionVisual } from '../visuals/TransactionVisual';
+import { PIXEL_SIZE } from './Config';
 
 export interface Block {
   number: number;
@@ -49,6 +51,7 @@ export class Engine {
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Could not get 2D context');
     this.ctx = ctx;
+    // Pass screen size - PixelWorld will handle PIXEL_SIZE scaling
     this.world = new PixelWorld(800, 600);
     this.fpsElement = document.getElementById('fps');
     this.resolutionElement = document.getElementById('resolution');
@@ -66,6 +69,7 @@ export class Engine {
       this.canvas.width = rect.width * dpr;
       this.canvas.height = rect.height * dpr;
       this.ctx.scale(dpr, dpr);
+      // Pass screen dimensions - world handles scaling
       this.world.resize(rect.width, rect.height);
     };
     
@@ -86,20 +90,19 @@ export class Engine {
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       
-      // Create a big explosion at click location
+      // Create explosion (world handles coordinate conversion)
       this.world.createExplosion(x, y, 40, 2);
       
-      // Add varied particles
-      for (let i = 0; i < 50; i++) {
+      // Add varied particles using screen coordinates
+      for (let i = 0; i < 30; i++) { // Reduced count for performance
         const px = x + (Math.random() - 0.5) * 60;
         const py = y + (Math.random() - 0.5) * 60;
         const types = [
           PixelType.FIRE, PixelType.GAS, PixelType.EXPLOSION, 
-          PixelType.ENERGY, PixelType.PLASMA, PixelType.SPARK,
-          PixelType.DEBRIS, PixelType.EMBER
+          PixelType.ENERGY, PixelType.PLASMA, PixelType.SPARK
         ];
         const type = types[Math.floor(Math.random() * types.length)];
-        this.world.setPixel(px, py, type);
+        this.world.setPixelScreen(px, py, type);
       }
     });
     
@@ -111,19 +114,19 @@ export class Engine {
       const y = e.clientY - rect.top;
       
       // Create lightning effect
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < 15; i++) { // Reduced count
         const lx = x + (Math.random() - 0.5) * 100;
         const ly = y + (Math.random() - 0.5) * 100;
-        this.world.setPixel(lx, ly, PixelType.LIGHTNING);
+        this.world.setPixelScreen(lx, ly, PixelType.LIGHTNING);
       }
       
       // Add electric particles
-      for (let i = 0; i < 30; i++) {
+      for (let i = 0; i < 20; i++) { // Reduced count
         const angle = Math.random() * Math.PI * 2;
         const dist = Math.random() * 50;
-        const ex = Math.floor(x + Math.cos(angle) * dist);
-        const ey = Math.floor(y + Math.sin(angle) * dist);
-        this.world.setPixel(ex, ey, PixelType.ELECTRIC);
+        const ex = x + Math.cos(angle) * dist;
+        const ey = y + Math.sin(angle) * dist;
+        this.world.setPixelScreen(ex, ey, PixelType.ELECTRIC);
       }
     });
     
@@ -158,20 +161,19 @@ export class Engine {
         const dx = x - lastDragX;
         const dy = y - lastDragY;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        const steps = Math.max(1, Math.floor(dist / 3));
+        const steps = Math.max(1, Math.floor(dist / 8)); // Reduced for performance
         
         for (let i = 0; i < steps; i++) {
           const t = i / steps;
           const px = lastDragX + dx * t + (Math.random() - 0.5) * 10;
           const py = lastDragY + dy * t + (Math.random() - 0.5) * 10;
           
-          // Cycle through particle types for variety
           const types = [
             PixelType.FIRE, PixelType.SPARK, PixelType.PLASMA,
-            PixelType.ENERGY, PixelType.GAS, PixelType.EMBER
+            PixelType.ENERGY, PixelType.GAS
           ];
           const type = types[Math.floor((this.time * 10 + i) % types.length)];
-          this.world.setPixel(px, py, type);
+          this.world.setPixelScreen(px, py, type);
         }
         
         lastDragX = x;
@@ -255,9 +257,9 @@ export class Engine {
     // Remove completed transactions
     this.pendingTransactions = this.pendingTransactions.filter(tx => !tx.isComplete());
     
-    // Add ambient particles periodically for crowded feel
+    // Add ambient particles periodically (reduced rate)
     this.ambientParticleTimer += dt;
-    if (this.ambientParticleTimer > 0.5) {
+    if (this.ambientParticleTimer > 1.0) { // Increased interval for performance
       this.ambientParticleTimer = 0;
       this.addAmbientParticles();
     }
@@ -268,40 +270,39 @@ export class Engine {
     }
     if (this.resolutionElement) {
       const res = this.world.getResolution();
-      this.resolutionElement.textContent = `${res.width}x${res.height}`;
+      this.resolutionElement.textContent = `${res.width}x${res.height} (${PIXEL_SIZE}x)`;
     }
   }
 
   private addAmbientParticles(): void {
-    const w = this.world['width'];
-    const h = this.world['height'];
+    const screenRes = this.world.getScreenResolution();
     
-    // Add ambient particles at edges for continuous activity
-    for (let i = 0; i < 10; i++) {
+    // Add ambient particles at edges (reduced count)
+    for (let i = 0; i < 5; i++) {
       const edge = Math.floor(Math.random() * 4);
       let x, y;
       
       switch (edge) {
         case 0: // Top
-          x = Math.random() * w;
+          x = Math.random() * screenRes.width;
           y = 0;
           break;
         case 1: // Right
-          x = w;
-          y = Math.random() * h;
+          x = screenRes.width;
+          y = Math.random() * screenRes.height;
           break;
         case 2: // Bottom
-          x = Math.random() * w;
-          y = h;
+          x = Math.random() * screenRes.width;
+          y = screenRes.height;
           break;
         default: // Left
           x = 0;
-          y = Math.random() * h;
+          y = Math.random() * screenRes.height;
       }
       
       const types = [PixelType.DUST, PixelType.EMBER, PixelType.SPARK];
       const type = types[Math.floor(Math.random() * types.length)];
-      this.world.setPixel(x, y, type);
+      this.world.setPixelScreen(x, y, type);
     }
   }
 
@@ -319,7 +320,7 @@ export class Engine {
     this.ctx.fillStyle = bgGradient;
     this.ctx.fillRect(0, 0, rect.width, rect.height);
     
-    // Render pixel world
+    // Render pixel world (handles PIXEL_SIZE scaling internally)
     this.world.render(this.ctx);
     
     // Render block entities
@@ -341,19 +342,10 @@ export class Engine {
       this.mouseX, this.mouseY, 0,
       this.mouseX, this.mouseY, 150
     );
-    gradient.addColorStop(0, 'rgba(96, 165, 250, 0.15)');
-    gradient.addColorStop(0.5, 'rgba(96, 165, 250, 0.05)');
+    gradient.addColorStop(0, 'rgba(96, 165, 250, 0.1)');
+    gradient.addColorStop(0.5, 'rgba(96, 165, 250, 0.03)');
     gradient.addColorStop(1, 'transparent');
     this.ctx.fillStyle = gradient;
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    
-    // Add subtle particle at mouse position occasionally
-    if (Math.random() < 0.1) {
-      this.world.setPixel(
-        this.mouseX + (Math.random() - 0.5) * 100,
-        this.mouseY + (Math.random() - 0.5) * 100,
-        PixelType.ENERGY
-      );
-    }
   }
 }

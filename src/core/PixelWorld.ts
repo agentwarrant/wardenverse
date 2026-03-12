@@ -1,13 +1,17 @@
 /**
  * Pixel World - Contains the pixel physics simulation
  * Noita-inspired visual effects with glow and particles
+ * Uses PIXEL_SIZE multiplier for performance (4x4 screen pixels per game pixel)
  */
 
 import { PixelType, PIXEL_PROPERTIES } from './PixelTypes';
+import { PIXEL_SIZE, AMBIENT_PARTICLE_DENSITY } from './Config';
 
 export class PixelWorld {
-  private width: number;
-  private height: number;
+  private screenWidth: number;
+  private screenHeight: number;
+  private width: number; // Physics grid width (screenWidth / PIXEL_SIZE)
+  private height: number; // Physics grid height (screenHeight / PIXEL_SIZE)
   private pixels: Uint8Array;
   private blockEntities: any[] = [];
   private transactionEntities: any[] = [];
@@ -25,12 +29,15 @@ export class PixelWorld {
   private fps: number = 0;
   private time: number = 0;
 
-  constructor(width: number, height: number) {
-    this.width = Math.floor(width);
-    this.height = Math.floor(height);
+  constructor(screenWidth: number, screenHeight: number) {
+    this.screenWidth = Math.floor(screenWidth);
+    this.screenHeight = Math.floor(screenHeight);
+    // Physics grid is smaller by PIXEL_SIZE factor
+    this.width = Math.floor(screenWidth / PIXEL_SIZE);
+    this.height = Math.floor(screenHeight / PIXEL_SIZE);
     this.pixels = new Uint8Array(this.width * this.height);
     
-    // Create offscreen canvas for pixel manipulation
+    // Create offscreen canvas at physics grid resolution
     this.canvas = document.createElement('canvas');
     this.canvas.width = this.width;
     this.canvas.height = this.height;
@@ -39,7 +46,7 @@ export class PixelWorld {
     this.ctx = ctx;
     this.imageData = this.ctx.createImageData(this.width, this.height);
     
-    // Glow canvas for bloom effect
+    // Glow canvas (also at physics resolution)
     this.glowCanvas = document.createElement('canvas');
     this.glowCanvas.width = this.width;
     this.glowCanvas.height = this.height;
@@ -95,7 +102,9 @@ export class PixelWorld {
   }
 
   private addAmbientParticles(): void {
-    for (let i = 0; i < 500; i++) {
+    // Scale particle count by physics grid size
+    const particleCount = Math.floor(this.width * this.height * AMBIENT_PARTICLE_DENSITY);
+    for (let i = 0; i < particleCount; i++) {
       const x = Math.floor(Math.random() * this.width);
       const y = Math.floor(Math.random() * this.height);
       const type = Math.random() > 0.85 ? PixelType.STAR : Math.random() > 0.7 ? PixelType.DUST : PixelType.EMBER;
@@ -103,9 +112,11 @@ export class PixelWorld {
     }
   }
 
-  resize(width: number, height: number): void {
-    this.width = Math.floor(width);
-    this.height = Math.floor(height);
+  resize(screenWidth: number, screenHeight: number): void {
+    this.screenWidth = Math.floor(screenWidth);
+    this.screenHeight = Math.floor(screenHeight);
+    this.width = Math.floor(screenWidth / PIXEL_SIZE);
+    this.height = Math.floor(screenHeight / PIXEL_SIZE);
     this.pixels = new Uint8Array(this.width * this.height);
     this.canvas.width = this.width;
     this.canvas.height = this.height;
@@ -133,11 +144,37 @@ export class PixelWorld {
     this.transactionEntities.push(entity);
   }
 
-  createExplosion(x: number, y: number, radius: number = 20, intensity: number = 1): void {
+  // Convert screen coordinates to physics grid coordinates
+  screenToGrid(screenX: number, screenY: number): { x: number; y: number } {
+    return {
+      x: Math.floor(screenX / PIXEL_SIZE),
+      y: Math.floor(screenY / PIXEL_SIZE)
+    };
+  }
+
+  // Convert physics grid coordinates to screen coordinates
+  gridToScreen(gridX: number, gridY: number): { x: number; y: number } {
+    return {
+      x: gridX * PIXEL_SIZE,
+      y: gridY * PIXEL_SIZE
+    };
+  }
+
+  createExplosion(screenX: number, screenY: number, radius: number = 20, intensity: number = 1): void {
+    // Convert to grid coordinates and scale radius
+    const grid = this.screenToGrid(screenX, screenY);
+    const gridRadius = Math.floor(radius / PIXEL_SIZE);
+    
     if (this.worker && this.workerReady) {
-      this.worker.postMessage({ type: 'explosion', x, y, radius, intensity });
+      this.worker.postMessage({ 
+        type: 'explosion', 
+        x: grid.x, 
+        y: grid.y, 
+        radius: gridRadius, 
+        intensity 
+      });
     } else {
-      this.pendingExplosions.push({ x, y, radius, intensity });
+      this.pendingExplosions.push({ x: grid.x, y: grid.y, radius: gridRadius, intensity });
     }
   }
 
@@ -203,21 +240,27 @@ export class PixelWorld {
     this.pixels[idx2] = temp;
   }
 
-  setPixel(x: number, y: number, type: PixelType): void {
-    if (x < 0 || x >= this.width || y < 0 || y >= this.height) return;
-    const idx = Math.floor(y) * this.width + Math.floor(x);
+  setPixel(gridX: number, gridY: number, type: PixelType): void {
+    if (gridX < 0 || gridX >= this.width || gridY < 0 || gridY >= this.height) return;
+    const idx = Math.floor(gridY) * this.width + Math.floor(gridX);
     this.pixels[idx] = type;
     
     if (this.worker && this.workerReady) {
-      this.worker.postMessage({ type: 'setPixel', x: Math.floor(x), y: Math.floor(y), pixelType: type });
+      this.worker.postMessage({ type: 'setPixel', x: Math.floor(gridX), y: Math.floor(gridY), pixelType: type });
     } else {
-      this.pendingPixels.push({ x: Math.floor(x), y: Math.floor(y), pixelType: type });
+      this.pendingPixels.push({ x: Math.floor(gridX), y: Math.floor(gridY), pixelType: type });
     }
   }
 
-  getPixel(x: number, y: number): PixelType {
-    if (x < 0 || x >= this.width || y < 0 || y >= this.height) return PixelType.EMPTY;
-    const idx = Math.floor(y) * this.width + Math.floor(x);
+  // Set pixel using screen coordinates (convenience method)
+  setPixelScreen(screenX: number, screenY: number, type: PixelType): void {
+    const grid = this.screenToGrid(screenX, screenY);
+    this.setPixel(grid.x, grid.y, type);
+  }
+
+  getPixel(gridX: number, gridY: number): PixelType {
+    if (gridX < 0 || gridX >= this.width || gridY < 0 || gridY >= this.height) return PixelType.EMPTY;
+    const idx = Math.floor(gridY) * this.width + Math.floor(gridX);
     return this.pixels[idx];
   }
 
@@ -227,6 +270,10 @@ export class PixelWorld {
 
   getResolution(): { width: number; height: number } {
     return { width: this.width, height: this.height };
+  }
+
+  getScreenResolution(): { width: number; height: number } {
+    return { width: this.screenWidth, height: this.screenHeight };
   }
 
   render(ctx: CanvasRenderingContext2D): void {
@@ -241,7 +288,7 @@ export class PixelWorld {
       data[i + 3] = 255;
     }
     
-    // Render glow layer first (for bloom effect)
+    // Clear glow canvas
     this.glowCtx.clearRect(0, 0, this.width, this.height);
     
     // Update image data from pixels with enhanced glow
@@ -276,7 +323,7 @@ export class PixelWorld {
         // Draw glow on glow canvas
         const x = i % this.width;
         const y = Math.floor(i / this.width);
-        const glowRadius = Math.floor(3 + props.glowIntensity * 5);
+        const glowRadius = Math.floor(1 + props.glowIntensity * 2);
         const gradient = this.glowCtx.createRadialGradient(x, y, 0, x, y, glowRadius);
         gradient.addColorStop(0, `rgba(${props.color[0]}, ${props.color[1]}, ${props.color[2]}, ${0.6 * props.glowIntensity})`);
         gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
@@ -297,10 +344,10 @@ export class PixelWorld {
     this.ctx.drawImage(this.glowCanvas, 0, 0);
     this.ctx.globalCompositeOperation = 'source-over';
     
-    // Scale to match target canvas
-    const rect = ctx.canvas.getBoundingClientRect();
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(this.canvas, 0, 0, rect.width, rect.height);
+    // Scale up to screen size using nearest-neighbor for pixel art look
+    const screenRect = ctx.canvas.getBoundingClientRect();
+    ctx.imageSmoothingEnabled = false; // Crisp pixel scaling
+    ctx.drawImage(this.canvas, 0, 0, screenRect.width, screenRect.height);
   }
 
   destroy(): void {
