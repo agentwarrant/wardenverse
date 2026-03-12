@@ -123,30 +123,217 @@
       color: #999;
       line-height: 1.5;
     }
+    /* Game-style controls panel */
     #controls {
       position: absolute;
       bottom: 20px;
       right: 20px;
-      background: rgba(20, 20, 30, 0.9);
-      padding: 12px 16px;
-      border-radius: 10px;
+      background: rgba(10, 10, 20, 0.95);
+      padding: 0;
+      border-radius: 8px;
       font-size: 11px;
-      color: #888;
-      border: 1px solid rgba(100, 100, 150, 0.25);
+      color: #ccc;
+      border: 2px solid rgba(96, 165, 250, 0.4);
       backdrop-filter: blur(10px);
+      overflow: hidden;
+      min-width: 200px;
+      box-shadow: 0 0 20px rgba(96, 165, 250, 0.2), inset 0 1px 0 rgba(255,255,255,0.05);
+      image-rendering: pixelated;
+      font-family: 'Press Start 2P', monospace;
     }
-    .control-item {
-      margin-bottom: 6px;
+    #controls-header {
       display: flex;
       align-items: center;
-      gap: 8px;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: linear-gradient(180deg, rgba(60, 80, 120, 0.4) 0%, rgba(40, 50, 80, 0.3) 100%);
+      border-bottom: 1px solid rgba(96, 165, 250, 0.3);
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.2s;
     }
-    .control-key {
-      background: rgba(60, 60, 80, 0.8);
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-family: monospace;
+    #controls-header:hover {
+      background: linear-gradient(180deg, rgba(70, 90, 130, 0.5) 0%, rgba(50, 60, 90, 0.4) 100%);
+    }
+    #controls-header h4 {
+      font-size: 9px;
       color: #60a5fa;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-shadow: 0 0 10px rgba(96, 165, 250, 0.5);
+      margin: 0;
+    }
+    #controls-toggle {
+      width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #60a5fa;
+      font-size: 10px;
+      transition: transform 0.2s;
+    }
+    #controls.collapsed #controls-toggle {
+      transform: rotate(-90deg);
+    }
+    #controls-body {
+      padding: 12px 14px;
+      max-height: 300px;
+      transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.2s ease;
+      overflow: hidden;
+    }
+    #controls.collapsed #controls-body {
+      max-height: 0;
+      padding: 0 14px;
+      opacity: 0;
+    }
+    .control-item {
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 8px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+      cursor: pointer;
+      position: relative;
+    }
+    .control-item:last-child {
+      margin-bottom: 0;
+    }
+    .control-item:hover {
+      background: rgba(96, 165, 250, 0.1);
+      border-color: rgba(96, 165, 250, 0.3);
+    }
+    .control-item:hover .pixel-key {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 0 #1e3a5f, 0 0 15px rgba(251, 191, 36, 0.5);
+    }
+    .control-item:hover .control-action {
+      color: #fff;
+      text-shadow: 0 0 8px rgba(96, 165, 250, 0.6);
+    }
+    .pixel-key {
+      width: 32px;
+      height: 28px;
+      background: linear-gradient(180deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%);
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 7px;
+      color: #fff;
+      text-shadow: 0 1px 0 rgba(0,0,0,0.5);
+      box-shadow: 0 3px 0 #1e3a5f, inset 0 1px 0 rgba(255,255,255,0.2);
+      transition: all 0.1s;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .pixel-key::before {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      right: 2px;
+      height: 6px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.25) 0%, transparent 100%);
+      border-radius: 2px 2px 0 0;
+    }
+    .pixel-key.mouse {
+      width: 36px;
+      background: linear-gradient(180deg, #10b981 0%, #059669 50%, #047857 100%);
+      box-shadow: 0 3px 0 #064e3b, inset 0 1px 0 rgba(255,255,255,0.2);
+    }
+    .pixel-key.mouse:hover {
+      box-shadow: 0 4px 0 #064e3b, 0 0 15px rgba(16, 185, 129, 0.5);
+    }
+    .pixel-key.action {
+      width: 40px;
+      background: linear-gradient(180deg, #f59e0b 0%, #d97706 50%, #b45309 100%);
+      box-shadow: 0 3px 0 #78350f, inset 0 1px 0 rgba(255,255,255,0.2);
+    }
+    .pixel-key.action:hover {
+      box-shadow: 0 4px 0 #78350f, 0 0 15px rgba(245, 158, 11, 0.5);
+    }
+    .pixel-key svg {
+      width: 16px;
+      height: 16px;
+      image-rendering: pixelated;
+    }
+    .control-action {
+      font-size: 8px;
+      color: #9ca3af;
+      letter-spacing: 0.5px;
+      transition: all 0.2s;
+      line-height: 1.4;
+    }
+    /* Visual feedback preview */
+    .control-preview {
+      position: absolute;
+      right: -10px;
+      top: 50%;
+      transform: translateY(-50%) translateX(100%);
+      width: 60px;
+      height: 60px;
+      background: rgba(10, 10, 20, 0.95);
+      border: 1px solid rgba(96, 165, 250, 0.3);
+      border-radius: 4px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    }
+    .control-item:hover .control-preview {
+      display: flex;
+    }
+    .preview-lightning {
+      width: 32px;
+      height: 32px;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M9 0L3 9h4l-2 7 8-9H9l2-7z' fill='%23fbbf24'/%3E%3C/svg%3E") center/contain no-repeat;
+      animation: preview-pulse 0.5s ease-in-out infinite alternate;
+    }
+    .preview-particles {
+      display: flex;
+      gap: 4px;
+      animation: preview-float 1s ease-in-out infinite;
+    }
+    .preview-particles span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      animation: preview-sparkle 0.8s ease-in-out infinite;
+    }
+    .preview-particles span:nth-child(1) { background: #f472b6; animation-delay: 0s; }
+    .preview-particles span:nth-child(2) { background: #a78bfa; animation-delay: 0.2s; }
+    .preview-particles span:nth-child(3) { background: #60a5fa; animation-delay: 0.4s; }
+    @keyframes preview-pulse {
+      from { transform: scale(0.8); opacity: 0.7; }
+      to { transform: scale(1.1); opacity: 1; }
+    }
+    @keyframes preview-float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+    }
+    @keyframes preview-sparkle {
+      0%, 100% { opacity: 0.5; transform: scale(0.8); }
+      50% { opacity: 1; transform: scale(1.2); }
+    }
+    /* Controls hint animation */
+    #controls-hint {
+      font-size: 7px;
+      color: #6b7280;
+      text-align: center;
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(100, 100, 150, 0.2);
+      animation: hint-pulse 2s ease-in-out infinite;
+    }
+    @keyframes hint-pulse {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 0.8; }
     }
     #loading {
       position: absolute;
@@ -328,23 +515,59 @@
         </div>
       </div>
       <div id="controls" style="display: none;">
-        <div class="control-item">
-          <span class="control-key">Click Block</span>
-          <span>View block info</span>
+        <div id="controls-header" onclick="toggleControls()">
+          <h4>⌨ Controls</h4>
+          <div id="controls-toggle">▼</div>
         </div>
-        <div class="control-item">
-          <span class="control-key">Click Tx Hash</span>
-          <span>View transaction info</span>
-        </div>
-        <div class="control-item">
-          <span class="control-key">Right Click</span>
-          <span>Lightning bolt</span>
-        </div>
-        <div class="control-item">
-          <span class="control-key">Drag</span>
-          <span>Particle spray</span>
+        <div id="controls-body">
+          <div class="control-item">
+            <div class="pixel-key mouse">
+              <svg viewBox="0 0 16 16" fill="none">
+                <rect x="3" y="2" width="10" height="12" rx="2" stroke="white" stroke-width="1.5" fill="none"/>
+                <rect x="7" y="4" width="2" height="3" fill="white"/>
+              </svg>
+            </div>
+            <span class="control-action">Click Block - View info</span>
+          </div>
+          <div class="control-item">
+            <div class="pixel-key mouse">
+              <svg viewBox="0 0 16 16" fill="none">
+                <rect x="3" y="2" width="10" height="12" rx="2" stroke="white" stroke-width="1.5" fill="none"/>
+                <rect x="7" y="4" width="2" height="3" fill="white"/>
+              </svg>
+            </div>
+            <span class="control-action">Click Tx - View details</span>
+          </div>
+          <div class="control-item">
+            <div class="pixel-key action">
+              <svg viewBox="0 0 16 16" fill="none" style="width:14px;height:14px;">
+                <path d="M3 3h10v8l-5 4-5-4V3z" stroke="white" stroke-width="1.5" fill="none"/>
+                <circle cx="8" cy="7" r="2" fill="white"/>
+              </svg>
+            </div>
+            <span class="control-action">Right click - Lightning</span>
+            <div class="control-preview">
+              <div class="preview-lightning"></div>
+            </div>
+          </div>
+          <div class="control-item">
+            <div class="pixel-key action">DRAG</div>
+            <span class="control-action">Particle spray</span>
+            <div class="control-preview">
+              <div class="preview-particles">
+                <span></span><span></span><span></span>
+              </div>
+            </div>
+          </div>
+          <div id="controls-hint">hover actions for preview</div>
         </div>
       </div>
+      <script>
+        function toggleControls() {
+          const controls = document.getElementById('controls');
+          controls.classList.toggle('collapsed');
+        }
+      </script>
       
     </div>
   </div>
