@@ -30,14 +30,14 @@ async function main() {
   // Initialize the reactive music system
   // House rhythm plays continuously, synth notes triggered by blockchain events
   const musicSystem = new MusicSystem();
-  let musicEnabled = false;
+  let musicEnabled = true;  // Music ON by default
   
   // Add music toggle button to header
   const header = document.getElementById('header');
   if (header) {
     const musicBtn = document.createElement('button');
     musicBtn.id = 'music-toggle';
-    musicBtn.innerHTML = '🔇 Music';
+    musicBtn.innerHTML = '🔊 Music';  // Show as ON by default
     musicBtn.style.cssText = `
       background: rgba(30, 30, 45, 0.8);
       border: 1px solid rgba(100, 100, 150, 0.3);
@@ -68,6 +68,9 @@ async function main() {
       }
     };
     header.appendChild(musicBtn);
+    
+    // Start music automatically on load
+    musicSystem.start().catch(console.warn);  // Silent fail if browser blocks autoplay
   }
   
   try {
