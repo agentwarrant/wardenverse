@@ -159,16 +159,16 @@ export class TransactionVisual {
     const py = t.y + (Math.random() - 0.5) * 4;
     
     const types = this.tx.type === 'token' 
-      ? [PixelType.TOKEN, PixelType.SPARK]
+      ? [PixelType.SPARK] // Reduced: only spark, no TOKEN particles during flight
       : this.tx.type === 'contract'
       ? [PixelType.PLASMA, PixelType.ELECTRIC]
       : [PixelType.SPARK];
     
     this.world.setPixelScreen(px, py, types[Math.floor(Math.random() * types.length)]);
     
-    // For token transfers, spawn additional floating TOKEN particles (reduced amount)
-    // These will float in place (TOKEN type has gravity: 0)
-    if (this.tx.type === 'token' && Math.random() > 0.75) {
+    // For token transfers, spawn fewer floating TOKEN particles
+    // Reduced from 0.75 to 0.9 for less pixel rain
+    if (this.tx.type === 'token' && Math.random() > 0.9) {
       const floatX = t.x + (Math.random() - 0.5) * 20;
       const floatY = t.y + (Math.random() - 0.5) * 20;
       this.world.setPixelScreen(floatX, floatY, PixelType.TOKEN);
@@ -176,24 +176,25 @@ export class TransactionVisual {
   }
 
   private createExitExplosion(): void {
-    const radius = this.tx.type === 'token' ? 14 : this.tx.type === 'contract' ? 14 : 10;
+    const radius = this.tx.type === 'token' ? 10 : this.tx.type === 'contract' ? 14 : 10;
     this.world.createExplosion(this.x, this.y, radius, this.intensity);
     
     if (this.tx.type === 'token') {
       // Spawn fewer floating TOKEN particles for coin transfer effect
-      for (let i = 0; i < 8; i++) {
+      // Reduced from 8 to 4
+      for (let i = 0; i < 4; i++) {
         const angle = Math.random() * Math.PI * 2;
-        const dist = Math.random() * 20;
+        const dist = Math.random() * 15;
         this.world.setPixelScreen(
           this.x + Math.cos(angle) * dist,
           this.y + Math.sin(angle) * dist,
           PixelType.TOKEN
         );
       }
-      // Add fewer sparkles
-      for (let i = 0; i < 5; i++) {
+      // Add fewer sparkles (reduced from 5 to 3)
+      for (let i = 0; i < 3; i++) {
         const angle = Math.random() * Math.PI * 2;
-        const dist = Math.random() * 30;
+        const dist = Math.random() * 20;
         this.world.setPixelScreen(
           this.x + Math.cos(angle) * dist,
           this.y + Math.sin(angle) * dist,

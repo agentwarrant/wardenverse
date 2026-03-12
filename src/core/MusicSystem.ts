@@ -294,10 +294,9 @@ export class MusicSystem {
         decay = 0.4;
         break;
       case 'token':
-        notes = this.TOKEN_NOTES;
-        oscType = 'triangle';
-        decay = 0.25;
-        break;
+        // Play a chord for token transfers (more distinctive sound)
+        this.playTokenChord();
+        return;
       case 'inference':
         notes = this.INFERENCE_NOTES;
         oscType = 'square';
@@ -319,6 +318,30 @@ export class MusicSystem {
       decay,
       release: 0.1,
       filterFreq: type === 'inference' ? 800 : 2000
+    });
+  }
+
+  /**
+   * Play a chord for token transfers (distinctive sound)
+   */
+  private playTokenChord(): void {
+    if (!this.audioContext || !this.synthGain) return;
+    
+    // Play a brighter chord for token transfers (major chord in the scale)
+    const chord = [392.00, 493.88, 587.33]; // G4, B4, D5 - bright major chord
+    
+    chord.forEach((freq, i) => {
+      setTimeout(() => {
+        this.playSynth({
+          frequency: freq,
+          type: 'triangle',
+          gain: 0.2,
+          attack: 0.01,
+          decay: 0.2,
+          release: 0.1,
+          filterFreq: 2500
+        });
+      }, i * 20); // Slight arpeggio for shimmer effect
     });
   }
 

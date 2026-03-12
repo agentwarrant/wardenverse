@@ -201,6 +201,21 @@ export class TxHashScroll {
   }
   
   addTransaction(tx: Transaction): void {
+    // Check if this hash already exists (deduplicate for visualizations)
+    // Since we emit multiple visualizations per tx, only show each hash once
+    const existingIndex = this.entries.findIndex(e => e.hash === tx.hash);
+    
+    if (existingIndex >= 0) {
+      // Already exists - update to show the primary type if it's more significant
+      // Priority: inference > token > contract > transfer
+      const priority: Record<string, number> = { inference: 4, token: 3, contract: 2, transfer: 1 };
+      const existingType = this.entries[existingIndex].type;
+      if (priority[tx.type] > priority[existingType]) {
+        this.entries[existingIndex].type = tx.type;
+      }
+      return; // Don't add duplicate entry
+    }
+    
     // Add new entry at the beginning (most recent)
     this.entries.unshift({
       hash: tx.hash,
