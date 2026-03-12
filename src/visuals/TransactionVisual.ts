@@ -4,7 +4,7 @@
  */
 
 import { PixelWorld } from '../core/PixelWorld';
-import { PixelType } from '../core/PixelTypes';
+import { PixelType, PIXEL_PROPERTIES } from '../core/PixelTypes';
 import { PIXEL_SIZE } from '../core/Config';
 import type { Transaction } from '../data/BlockchainDataSource';
 
@@ -24,14 +24,16 @@ export class TransactionVisual {
   private screenWidth: number;
   private screenHeight: number;
 
-  constructor(tx: Transaction, world: PixelWorld, screenWidth: number, screenHeight: number) {
-    this.tx = tx;
+  constructor(tx: Transaction, world: PixelWorld, screenWidth: number, screenHeight: number) {this.tx = tx;
     this.world = world;
     this.screenWidth = screenWidth;
     this.screenHeight = screenHeight;
     
     // Scale based on transaction type
-    if (tx.type === 'token') {
+    if (tx.type === 'inference') {
+      this.size = 16; // Largest - Proof Of Inference
+      this.intensity = 3.0;
+    } else if (tx.type === 'token') {
       this.size = 10;
       this.intensity = 1.5;
     } else if (tx.type === 'contract') {
@@ -107,14 +109,14 @@ export class TransactionVisual {
     }
     
     // Limit trail
-    const maxTrail = this.tx.type === 'token' ? 25 : this.tx.type === 'contract' ? 18 : 12;
+    const maxTrail = this.tx.type === 'inference' ? 35 : this.tx.type === 'token' ? 25 : this.tx.type === 'contract' ? 18 : 12;
     while (this.trail.length > maxTrail) {
       this.trail.shift();
     }
   }
 
   private spawnParticles(): void {
-    const count = this.tx.type === 'token' ? 2 : this.tx.type === 'contract' ? 1 : 1;
+    const count = this.tx.type === 'inference' ? 4 : this.tx.type === 'token' ? 2 : this.tx.type === 'contract' ? 1 : 1;
     for (let i = 0; i < count; i++) {
       const trailIdx = Math.floor(Math.random() * Math.min(this.trail.length, 6));
       if (trailIdx < this.trail.length) {
@@ -124,6 +126,10 @@ export class TransactionVisual {
         
         let pixelType: PixelType;
         switch (this.tx.type) {
+          case 'inference':
+            // Proof Of Inference - red/orange/fire particles
+            pixelType = Math.random() > 0.4 ? PixelType.INFERENCE : Math.random() > 0.5 ? PixelType.FIRE : PixelType.EXPLOSION;
+            break;
           case 'token':
             pixelType = Math.random() > 0.6 ? PixelType.TOKEN : PixelType.SPARK;
             break;
@@ -139,10 +145,32 @@ export class TransactionVisual {
   }
 
   private createExitExplosion(): void {
-    const radius = this.tx.type === 'token' ? 20 : this.tx.type === 'contract' ? 16 : 10;
+    // Proof Of Inference gets the BIGGEST red explosion
+    const radius = this.tx.type === 'inference' ? 60 : this.tx.type === 'token' ? 20 : this.tx.type === 'contract' ? 16 : 10;
     this.world.createExplosion(this.x, this.y, radius, this.intensity);
     
-    if (this.tx.type === 'token') {
+    if (this.tx.type === 'inference') {
+      // Proof Of Inference - MASSIVE red explosion with fire and plasma
+      for (let i = 0; i < 50; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.random() * 40;
+        const px = this.x + Math.cos(angle) * dist;
+        const py = this.y + Math.sin(angle) * dist;
+        // Mix of INFERENCE, FIRE, EXPLOSION particles for big red boom
+        const types = [PixelType.INFERENCE, PixelType.FIRE, PixelType.EXPLOSION, PixelType.PLASMA];
+        this.world.setPixelScreen(px, py, types[Math.floor(Math.random() * types.length)]);
+      }
+      // Extra fire ring
+      for (let i = 0; i < 30; i++) {
+        const angle = (i / 30) * Math.PI * 2;
+        const dist = 25 + Math.random() * 15;
+        this.world.setPixelScreen(
+          this.x + Math.cos(angle) * dist,
+          this.y + Math.sin(angle) * dist,
+          PixelType.FIRE
+        );
+      }
+    } else if (this.tx.type === 'token') {
       for (let i = 0; i < 8; i++) {
         const angle = Math.random() * Math.PI * 2;
         const dist = Math.random() * 12;
@@ -171,6 +199,9 @@ export class TransactionVisual {
       
       let color: string;
       switch (t.type) {
+        case 'inference':
+          color = `rgba(255, 50, 30, ${alpha})`; // Bright red for Proof Of Inference
+          break;
         case 'token':
           color = `rgba(52, 211, 153, ${alpha})`;
           break;
@@ -193,8 +224,8 @@ export class TransactionVisual {
       ctx.arc(tpx, tpy, trailSize, 0, Math.PI * 2);
       ctx.fill();
       
-      // Bright center for token
-      if (t.type === 'token' && i > this.trail.length * 0.6) {
+      // Bright center for token or inference
+      if ((t.type === 'token' || t.type === 'inference') && i > this.trail.length * 0.6) {
         ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.4})`;
         ctx.beginPath();
         ctx.arc(tpx, tpy, trailSize * 0.3, 0, Math.PI * 2);
@@ -208,6 +239,10 @@ export class TransactionVisual {
     // Colors by type
     let color1: string, color2: string;
     switch (this.tx.type) {
+      case 'inference':
+        color1 = '#ff321e'; // Bright red for Proof Of Inference
+        color2 = 'rgba(255, 50, 30, 0)';
+        break;
       case 'token':
         color1 = '#34d399';
         color2 = 'rgba(52, 211, 153, 0)';
@@ -247,17 +282,21 @@ export class TransactionVisual {
     ctx.arc(px, py, headSize * 0.35, 0, Math.PI * 2);
     ctx.fill();
     
-    // Sparkle for token
-    if (this.tx.type === 'token') {
+    // Sparkle for token or inference
+    if (this.tx.type === 'token' || this.tx.type === 'inference') {
       const sparkleTime = Date.now() * 0.008;
-      for (let i = 0; i < 3; i++) {
-        const angle = (i / 3) * Math.PI * 2 + sparkleTime;
+      const sparkleCount = this.tx.type === 'inference' ? 6 : 3;
+      for (let i = 0; i < sparkleCount; i++) {
+        const angle = (i / sparkleCount) * Math.PI * 2 + sparkleTime;
         const dist = headSize * 1.2;
         const sx = px + Math.cos(angle) * dist;
         const sy = py + Math.sin(angle) * dist;
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        // Inference gets red/orange sparkles, token gets white
+        ctx.fillStyle = this.tx.type === 'inference' 
+          ? `rgba(255, ${150 + Math.floor(Math.random() * 50)}, 0, 0.8)` 
+          : 'rgba(255, 255, 255, 0.7)';
         ctx.beginPath();
-        ctx.arc(sx, sy, PIXEL_SIZE * 0.4, 0, Math.PI * 2);
+        ctx.arc(sx, sy, PIXEL_SIZE * (this.tx.type === 'inference' ? 0.6 : 0.4), 0, Math.PI * 2);
         ctx.fill();
       }
     }

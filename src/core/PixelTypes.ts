@@ -24,6 +24,8 @@ export enum PixelType {
   DEBRIS = 16,
   TOKEN = 17,
   VOID = 18,
+  // Proof Of Inference - big red explosion
+  INFERENCE = 19,
 }
 
 export interface PixelProperties {
@@ -368,4 +370,24 @@ export const PIXEL_PROPERTIES: Record<PixelType, PixelProperties | null> = {
     emissive: false,
     flickerRate: 0,
   },
-};
+  
+  [PixelType.INFERENCE]: {
+    color: [255, 50, 30, 255], // Bright red
+    gravity: -0.5,
+    spread: 0.8,
+    lifetime: 2000,
+    glow: true,
+    glowIntensity: 1.5,
+    particleSize: 3,
+    trail: true,
+    trailType: PixelType.FIRE,
+    explodeOnDeath: PixelType.EXPLOSION,
+    explodeCount: 20,
+    interactions: {
+      [PixelType.DUST]: PixelType.FIRE,
+      [PixelType.GAS]: PixelType.EXPLOSION,
+      [PixelType.SPARK]: PixelType.PLASMA,
+    },
+    emissive: true,
+    flickerRate: 0.7,
+  },};

@@ -26,7 +26,7 @@ export interface Transaction {
   to: string | null;
   value: string;
   gasPrice: string;
-  type: 'transfer' | 'contract' | 'token';
+  type: 'transfer' | 'contract' | 'token' | 'inference';
 }
 
 export class Engine {

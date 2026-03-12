@@ -4,6 +4,7 @@
  */
 
 import { JsonRpcProvider, Block as EthersBlock, TransactionResponse } from 'ethers';
+import { PROOF_OF_INFERENCE_ADDRESS } from '../core/Config';
 
 export interface Block {
   number: number;
@@ -22,7 +23,7 @@ export interface Transaction {
   to: string | null;
   value: string;
   gasPrice: string;
-  type: 'transfer' | 'contract' | 'token';
+  type: 'transfer' | 'contract' | 'token' | 'inference';
 }
 
 type BlockCallback = (block: Block) => void;
@@ -115,10 +116,12 @@ export class BlockchainDataSource {
 
   private async processTransaction(tx: TransactionResponse): Promise<Transaction> {
     // Determine transaction type
-    let type: 'transfer' | 'contract' | 'token' = 'transfer';
+    let type: 'transfer' | 'contract' | 'token' | 'inference' = 'transfer';
     
     if (tx.to === null) {
       type = 'contract'; // Contract creation
+    } else if (tx.to.toLowerCase() === PROOF_OF_INFERENCE_ADDRESS) {
+      type = 'inference'; // Proof Of Inference contract call
     } else if (tx.data && tx.data.length > 2) {
       type = 'token'; // Likely a token transfer or contract call
     }
