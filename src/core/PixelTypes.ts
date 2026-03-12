@@ -344,7 +344,7 @@ export const PIXEL_PROPERTIES: Record<PixelType, PixelProperties | null> = {
     trail: true,
     trailType: PixelType.SPARK,
     explodeOnDeath: PixelType.PLASMA,
-    explodeCount: 8,
+    explodeCount: 4,
     interactions: {},
     emissive: true,
     flickerRate: 0.3,

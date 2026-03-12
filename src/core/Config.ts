@@ -19,7 +19,7 @@ export const AMBIENT_PARTICLE_DENSITY = 0.0008; // particles per pixel
 export const TRAIL_SPAWN_RATE = 0.15;
 
 // Explosion particle multiplier
-export const EXPLOSION_PARTICLE_MULTIPLIER = 40;
+export const EXPLOSION_PARTICLE_MULTIPLIER = 30;
 
 // Proof Of Inference contract address
 export const PROOF_OF_INFERENCE_ADDRESS = '0x510b5Df4612380c6564320d7DbbfdBe72AC0d529'.toLowerCase();
