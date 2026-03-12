@@ -1,217 +1,56 @@
 /**
- * Retro Chiptune Music System
- * Generates keygen-style tracker music with Web Audio API
- * Inspired by oldschool 4-channel trackers (FastTracker, ScreamTracker)
+ * Reactive Music System for Wardenverse
+ * House-style rhythm with synth sounds triggered by blockchain events
+ * No continuous melody - sounds emerge from on-chain activity
  */
 
-interface TrackNote {
-  note: number; // MIDI note number
-  duration: number; // in ticks
-  instrument: number; // instrument index
-  effect?: number; // effect type
-  effectParam?: number;
+export type TransactionType = 'transfer' | 'contract' | 'token' | 'inference';
+
+interface DrumSound {
+  type: 'kick' | 'snare' | 'hihat' | 'clap';
+  gain: number;
+  decay: number;
+  pitch?: number;
 }
 
-interface Pattern {
-  channels: TrackNote[][];
-  length: number;
-}
-
-interface Instrument {
-  type: 'square' | 'sawtooth' | 'triangle' | 'sine' | 'noise';
+interface SynthSound {
+  frequency: number;
+  type: OscillatorType;
+  gain: number;
   attack: number;
   decay: number;
-  sustain: number;
   release: number;
-  arpeggio?: number[]; // rapid note cycling
-  vibrato?: { speed: number; depth: number };
-  portamento?: number;
-  pulseWidth?: number;
+  filterFreq?: number;
 }
 
 export class MusicSystem {
   private audioContext: AudioContext | null = null;
   private masterGain: GainNode | null = null;
+  private rhythmGain: GainNode | null = null;
+  private synthGain: GainNode | null = null;
   private isPlaying: boolean = false;
-  private bpm: number = 125;
-  private ticksPerBeat: number = 4;
-  private currentPattern: number = 0;
-  private currentTick: number = 0;
-  private schedulerId: number | null = null;
-  private activeVoices: Map<string, OscillatorNode | AudioBufferSourceNode> = new Map();
-  private gainNodes: Map<string, GainNode> = new Map();
-  private volume: number = 0.15;
+  private bpm: number = 120; // House tempo
+  private schedulerId: ReturnType<typeof setTimeout> | null = null;
+  private nextNoteTime: number = 0;
+  private currentStep: number = 0;
+  
+  // Volume settings
+  private rhythmVolume: number = 0.3;
+  private synthVolume: number = 0.08; // Lower volume for synth notes
+  
+  // House rhythm pattern (16 steps per bar)
+  private readonly KICK_PATTERN = [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]; // Four-on-the-floor
+  private readonly HIHAT_PATTERN = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]; // Continuous hi-hats
+  private readonly CLAP_PATTERN = [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]; // Claps on 2 and 4
+  
+  // Synth note pool for blockchain events (pentatonic scale - always sounds harmonious)
+  private readonly BLOCK_NOTES = [261.63, 293.66, 329.63, 392.00, 440.00]; // C4 pentatonic
+  private readonly TRANSFER_NOTES = [523.25, 587.33, 659.25]; // C5 pentatonic (higher)
+  private readonly CONTRACT_NOTES = [130.81, 146.83, 164.81]; // C3 (bass, lower)
+  private readonly TOKEN_NOTES = [392.00, 440.00, 493.88]; // Mid range
+  private readonly INFERENCE_NOTES = [196.00, 220.00, 246.94]; // G3-Bb3 (mysterious)
 
-  // Keygen-style instruments
-  private instruments: Instrument[] = [
-    // Lead synth - bright square wave for arpeggios
-    { type: 'square', attack: 0.01, decay: 0.1, sustain: 0.3, release: 0.1, arpeggio: [0, 4, 7] },
-    // Bass - low sawtooth
-    { type: 'sawtooth', attack: 0.02, decay: 0.15, sustain: 0.5, release: 0.2, portamento: 0.05 },
-    // Pad - soft triangle
-    { type: 'triangle', attack: 0.1, decay: 0.2, sustain: 0.6, release: 0.3, vibrato: { speed: 5, depth: 3 } },
-    // Lead2 - bright for melodies
-    { type: 'square', attack: 0.005, decay: 0.08, sustain: 0.2, release: 0.15, pulseWidth: 0.25 },
-  ];
-
-  // The patterns - classic keygen chord progressions
-  private patterns: Pattern[] = [];
-
-  // Note frequencies (A4 = 440Hz standard)
-  private noteFrequencies: Map<number, number> = new Map();
-
-  constructor() {
-    this.initNoteFrequencies();
-    this.initPatterns();
-  }
-
-  private initNoteFrequencies(): void {
-    const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-    for (let octave = 0; octave < 9; octave++) {
-      for (let n = 0; n < 12; n++) {
-        const noteNum = octave * 12 + n;
-        const freq = 440 * Math.pow(2, (noteNum - 69) / 12);
-        this.noteFrequencies.set(noteNum, freq);
-      }
-    }
-  }
-
-  private initPatterns(): void {
-    // Classic keygen chord progression: Am - F - C - G (very retro)
-    // Pattern structure: [channel][tick] = note
-    // Channel 0: Arpeggiated lead
-    // Channel 1: Bass
-    // Channel 2: Pad/Chords
-    // Channel 3: Melody accents
-
-    const tickDuration = 1; // Each note occupies this many ticks
-
-    // Pattern 0: Am section
-    this.patterns.push({
-      length: 64,
-      channels: [
-        // Channel 0: Fast arpeggios (lead)
-        this.createArpChannel([57, 60, 64], 2, 64), // Am arp (A3-C4-E4)
-        // Channel 1: Walking bass
-        this.createBassChannel([33, 36, 33, 34, 33, 31, 33, 36], 8),
-        // Channel 2: Pad/Chords
-        this.createPadChannel([57, 60, 64], 16, 64),
-        // Channel 3: Melody accents
-        this.createMelodyChannel([76, 69, 72, 76, 81, 79, 76, 72], 8),
-      ]
-    });
-
-    // Pattern 1: F section
-    this.patterns.push({
-      length: 64,
-      channels: [
-        this.createArpChannel([53, 57, 60], 2, 64), // F arp (F3-A3-C4)
-        this.createBassChannel([29, 32, 29, 27, 29, 32, 29, 27], 8),
-        this.createPadChannel([53, 57, 60], 16, 64),
-        this.createMelodyChannel([74, 77, 81, 77, 74, 72, 74, 77], 8),
-      ]
-    });
-
-    // Pattern 2: C section
-    this.patterns.push({
-      length: 64,
-      channels: [
-        this.createArpChannel([48, 52, 55], 2, 64), // C arp (C3-E3-G3)
-        this.createBassChannel([24, 28, 31, 28, 24, 28, 31, 28], 8),
-        this.createPadChannel([48, 52, 55], 16, 64),
-        this.createMelodyChannel([72, 76, 79, 76, 72, 71, 72, 76], 8),
-      ]
-    });
-
-    // Pattern 3: G section (high energy)
-    this.patterns.push({
-      length: 64,
-      channels: [
-        this.createArpChannel([43, 47, 50], 2, 64), // G arp (G2-B2-D3)
-        this.createBassChannel([31, 35, 38, 35, 31, 35, 38, 31], 8),
-        this.createPadChannel([43, 47, 50], 16, 64),
-        this.createMelodyChannel([79, 83, 86, 83, 79, 77, 79, 83], 8),
-      ]
-    });
-
-    // Pattern 4: Variation - Dm section
-    this.patterns.push({
-      length: 64,
-      channels: [
-        this.createArpChannel([50, 53, 57], 2, 64), // Dm arp (D3-F3-A3)
-        this.createBassChannel([38, 41, 38, 36, 38, 41, 38, 36], 8),
-        this.createPadChannel([50, 53, 57], 16, 64),
-        this.createMelodyChannel([74, 77, 81, 84, 81, 77, 74, 72], 8),
-      ]
-    });
-
-    // Pattern 5: Em section
-    this.patterns.push({
-      length: 64,
-      channels: [
-        this.createArpChannel([52, 55, 59], 2, 64), // Em arp (E3-G3-B3)
-        this.createBassChannel([40, 43, 40, 38, 40, 43, 40, 38], 8),
-        this.createPadChannel([52, 55, 59], 16, 64),
-        this.createMelodyChannel([76, 79, 83, 86, 83, 79, 76, 74], 8),
-      ]
-    });
-  }
-
-  private createArpChannel(notes: number[], ticksPerNote: number, totalTicks: number): TrackNote[] {
-    const channel: TrackNote[] = [];
-    for (let i = 0; i < totalTicks; i += ticksPerNote) {
-      const noteIndex = Math.floor(i / ticksPerNote) % notes.length;
-      channel.push({
-        note: notes[noteIndex],
-        duration: ticksPerNote,
-        instrument: 0,
-        effect: 0, // arpeggio effect
-        effectParam: 7 // arpeggio speed
-      });
-    }
-    return channel;
-  }
-
-  private createBassChannel(notes: number[], ticksPerNote: number): TrackNote[] {
-    const channel: TrackNote[] = [];
-    for (let i = 0; i < notes.length; i++) {
-      channel.push({
-        note: notes[i],
-        duration: ticksPerNote,
-        instrument: 1,
-        effect: 1 // portamento
-      });
-    }
-    return channel;
-  }
-
-  private createPadChannel(chord: number[], ticksPerChord: number, totalTicks: number): TrackNote[] {
-    const channel: TrackNote[] = [];
-    for (let i = 0; i < totalTicks; i += ticksPerChord) {
-      const transposition = Math.floor(i / ticksPerChord) % 4 * 2 - 2;
-      const finalNote = chord[0] + transposition;
-      channel.push({
-        note: finalNote,
-        duration: ticksPerChord,
-        instrument: 2,
-        effect: 2 // vibrato
-      });
-    }
-    return channel;
-  }
-
-  private createMelodyChannel(notes: number[], ticksPerNote: number): TrackNote[] {
-    const channel: TrackNote[] = [];
-    for (let i = 0; i < notes.length; i++) {
-      channel.push({
-        note: notes[i],
-        duration: ticksPerNote,
-        instrument: 3,
-        effect: i % 2 === 0 ? undefined : 3 // slight slide on every other note
-      });
-    }
-    return channel;
-  }
+  constructor() {}
 
   private async initAudio(): Promise<void> {
     if (this.audioContext) return;
@@ -220,57 +59,47 @@ export class MusicSystem {
     
     // Master gain
     this.masterGain = this.audioContext.createGain();
-    this.masterGain.gain.value = this.volume;
+    this.masterGain.gain.value = 0.5;
     this.masterGain.connect(this.audioContext.destination);
-
-    // Add a slight reverb/chorus effect for that authentic tracker feel
-    this.addEffects();
+    
+    // Separate gain nodes for rhythm and synth
+    this.rhythmGain = this.audioContext.createGain();
+    this.rhythmGain.gain.value = this.rhythmVolume;
+    this.rhythmGain.connect(this.masterGain);
+    
+    this.synthGain = this.audioContext.createGain();
+    this.synthGain.gain.value = this.synthVolume;
+    this.synthGain.connect(this.masterGain);
+    
+    // Add subtle reverb for depth
+    this.addReverb();
   }
 
-  private addEffects(): void {
+  private addReverb(): void {
     if (!this.audioContext || !this.masterGain) return;
-
-    // Simple chorus/delay for depth
-    const delay = this.audioContext.createDelay();
-    delay.delayTime.value = 0.02;
     
-    const feedback = this.audioContext.createGain();
-    feedback.gain.value = 0.3;
-    
+    // Simple convolution-style reverb using delay
+    const delay1 = this.audioContext.createDelay();
+    const delay2 = this.audioContext.createDelay();
+    const feedback1 = this.audioContext.createGain();
+    const feedback2 = this.audioContext.createGain();
     const wetGain = this.audioContext.createGain();
+    
+    delay1.delayTime.value = 0.1;
+    delay2.delayTime.value = 0.15;
+    feedback1.gain.value = 0.2;
+    feedback2.gain.value = 0.15;
     wetGain.gain.value = 0.15;
     
-    const dryGain = this.audioContext.createGain();
-    dryGain.gain.value = 0.85;
-    
-    // Create chorus effect path
-    const chorusGain = this.audioContext.createGain();
-    chorusGain.gain.value = 0.3;
-    
-    const lfo = this.audioContext.createOscillator();
-    lfo.frequency.value = 0.5;
-    lfo.type = 'sine';
-    
-    const lfoGain = this.audioContext.createGain();
-    lfoGain.gain.value = 0.001;
-    
-    lfo.connect(lfoGain);
-    lfoGain.connect(delay.delayTime);
-    lfo.start();
-    
-    this.masterGain.connect(dryGain);
-    dryGain.connect(this.audioContext.destination);
-    
-    this.masterGain.connect(delay);
-    delay.connect(feedback);
-    feedback.connect(delay);
-    delay.connect(wetGain);
+    // Create reverb tail
+    this.masterGain.connect(delay1);
+    delay1.connect(feedback1);
+    feedback1.connect(delay1);
+    delay1.connect(delay2);
+    delay2.connect(feedback2);
+    feedback2.connect(delay2);
+    delay2.connect(wetGain);
     wetGain.connect(this.audioContext.destination);
-    
-    // Reconnect master gain to the dry path
-    this.masterGain.disconnect();
-    this.masterGain.connect(dryGain);
-    this.masterGain.connect(delay);
   }
 
   public async start(): Promise<void> {
@@ -282,193 +111,283 @@ export class MusicSystem {
     }
 
     this.isPlaying = true;
-    this.currentPattern = 0;
-    this.currentTick = 0;
-
-    // Start the scheduler
-    this.scheduleNotes();
+    this.currentStep = 0;
+    this.nextNoteTime = this.audioContext.currentTime;
+    this.scheduleRhythm();
   }
 
   public stop(): void {
     this.isPlaying = false;
     if (this.schedulerId) {
-      cancelAnimationFrame(this.schedulerId);
+      clearTimeout(this.schedulerId);
       this.schedulerId = null;
     }
+  }
+
+  public setRhythmVolume(volume: number): void {
+    this.rhythmVolume = Math.max(0, Math.min(1, volume));
+    if (this.rhythmGain) {
+      this.rhythmGain.gain.value = this.rhythmVolume;
+    }
+  }
+
+  public setSynthVolume(volume: number): void {
+    this.synthVolume = Math.max(0, Math.min(1, volume));
+    if (this.synthGain) {
+      this.synthGain.gain.value = this.synthVolume;
+    }
+  }
+
+  private scheduleRhythm(): void {
+    if (!this.isPlaying || !this.audioContext) return;
     
-    // Stop all active voices
-    this.activeVoices.forEach((voice) => {
-      try {
-        voice.stop();
-      } catch (e) {
-        // Already stopped
+    const secondsPerBeat = 60 / this.bpm;
+    const secondsPerStep = secondsPerBeat / 4; // 16th notes
+    
+    // Schedule notes ahead of time
+    while (this.nextNoteTime < this.audioContext.currentTime + 0.1) {
+      // Kick drum
+      if (this.KICK_PATTERN[this.currentStep]) {
+        this.playKick(this.nextNoteTime);
       }
-    });
-    this.activeVoices.clear();
-    this.gainNodes.clear();
-  }
-
-  public setVolume(volume: number): void {
-    this.volume = Math.max(0, Math.min(1, volume));
-    if (this.masterGain) {
-      this.masterGain.gain.value = this.volume;
-    }
-  }
-
-  private scheduleNotes(): void {
-    if (!this.isPlaying || !this.audioContext || !this.masterGain) return;
-
-    const tickDuration = 60 / this.bpm / this.ticksPerBeat;
-    const pattern = this.patterns[this.currentPattern];
-
-    // Schedule notes for each channel
-    pattern.channels.forEach((channel, channelIndex) => {
-      const currentNote = channel.find((note, index) => {
-        const noteTick = channel.slice(0, index).reduce((sum, n) => sum + n.duration, 0);
-        return this.currentTick >= noteTick && this.currentTick < noteTick + note.duration;
-      });
-
-      if (currentNote && this.currentTick % currentNote.duration === 0) {
-        this.playNote(currentNote.note, currentNote.instrument, tickDuration * currentNote.duration * 0.9, channelIndex);
+      
+      // Hi-hat
+      if (this.HIHAT_PATTERN[this.currentStep]) {
+        this.playHihat(this.nextNoteTime);
       }
-    });
-
-    // Advance tick
-    this.currentTick++;
-    if (this.currentTick >= pattern.length) {
-      this.currentTick = 0;
-      this.currentPattern = (this.currentPattern + 1) % this.patterns.length;
+      
+      // Clap
+      if (this.CLAP_PATTERN[this.currentStep]) {
+        this.playClap(this.nextNoteTime);
+      }
+      
+      this.currentStep = (this.currentStep + 1) % 16;
+      this.nextNoteTime += secondsPerStep;
     }
-
-    // Schedule next tick
-    setTimeout(() => this.scheduleNotes(), tickDuration * 1000);
+    
+    // Continue scheduling
+    this.schedulerId = setTimeout(() => this.scheduleRhythm(), 25);
   }
 
-  private playNote(noteNumber: number, instrumentIndex: number, duration: number, channelId: number): void {
-    if (!this.audioContext || !this.masterGain) return;
-
-    const voiceId = `${channelId}-${noteNumber}-${Date.now()}`;
-    const instrument = this.instruments[instrumentIndex] || this.instruments[0];
-    const freq = this.noteFrequencies.get(noteNumber) || 440;
-
-    const now = this.audioContext.currentTime;
-    const endTime = now + duration;
-
-    // Create oscillator
+  private playKick(time: number): void {
+    if (!this.audioContext || !this.rhythmGain) return;
+    
     const osc = this.audioContext.createOscillator();
+    const gain = this.audioContext.createGain();
     
-    // Set waveform type
-    if (instrument.type === 'noise') {
-      // For noise, we'll use a buffer source
-      this.playNoise(duration, instrument, voiceId);
-      return;
-    }
+    // Pitch envelope for that house kick sound
+    osc.frequency.setValueAtTime(150, time);
+    osc.frequency.exponentialRampToValueAtTime(40, time + 0.1);
     
-    osc.type = instrument.type;
-    osc.frequency.value = freq;
-
-    // Pulse width modulation for square waves
-    if (instrument.pulseWidth && instrument.type === 'square') {
-      // Apply pulse width using a custom approach
-      const pwm = this.audioContext.createGain();
-      // This creates a thinner, more aggressive sound
-      osc.connect(pwm);
-      pwm.connect(this.masterGain);
-    }
-
-    // Vibrato
-    if (instrument.vibrato) {
-      const lfo = this.audioContext.createOscillator();
-      const lfoGain = this.audioContext.createGain();
-      lfo.frequency.value = instrument.vibrato.speed;
-      lfoGain.gain.value = instrument.vibrato.depth;
-      lfo.connect(lfoGain);
-      lfoGain.connect(osc.frequency);
-      lfo.start(now);
-      lfo.stop(endTime);
-    }
-
-    // Portamento
-    if (instrument.portamento && oscillatorWasPlaying[channelId]) {
-      // Smooth pitch slide from previous note
-      const prevFreq = previousNoteFreq[channelId] || freq;
-      osc.frequency.setValueAtTime(prevFreq, now);
-      osc.frequency.linearRampToValueAtTime(freq, now + instrument.portamento);
-    }
-    previousNoteFreq[channelId] = freq;
-    oscillatorWasPlaying[channelId] = true;
-
-    // ADSR envelope
-    const gainNode = this.audioContext.createGain();
-    const maxGain = 0.25 / (instrumentIndex + 1); // Lower volume for bass
+    // Amplitude envelope
+    gain.gain.setValueAtTime(1, time);
+    gain.gain.exponentialRampToValueAtTime(0.01, time + 0.3);
     
-    gainNode.gain.setValueAtTime(0, now);
-    gainNode.gain.linearRampToValueAtTime(maxGain, now + instrument.attack);
-    gainNode.gain.linearRampToValueAtTime(maxGain * instrument.sustain, now + instrument.attack + instrument.decay);
-    gainNode.gain.setValueAtTime(maxGain * instrument.sustain, endTime - instrument.release);
-    gainNode.gain.linearRampToValueAtTime(0, endTime);
-
-    osc.connect(gainNode);
-    gainNode.connect(this.masterGain);
-
-    // Arpeggio effect (fast cycling through chord tones)
-    if (instrument.arpeggio && instrument.arpeggio.length > 0) {
-      const arpDuration = duration / instrument.arpeggio.length;
-      instrument.arpeggio.forEach((semitones, i) => {
-        const arpFreq = freq * Math.pow(2, semitones / 12);
-        osc.frequency.setValueAtTime(arpFreq, now + i * arpDuration);
-      });
-    }
-
-    osc.start(now);
-    osc.stop(endTime + 0.1);
-
-    // Track for cleanup
-    this.activeVoices.set(voiceId, osc);
-    this.gainNodes.set(voiceId, gainNode);
-
-    // Cleanup after note ends
-    setTimeout(() => {
-      this.activeVoices.delete(voiceId);
-      this.gainNodes.delete(voiceId);
-    }, (duration + 0.2) * 1000);
+    osc.connect(gain);
+    gain.connect(this.rhythmGain);
+    
+    osc.start(time);
+    osc.stop(time + 0.3);
   }
 
-  private playNoise(duration: number, instrument: Instrument, voiceId: string): void {
-    if (!this.audioContext || !this.masterGain) return;
-
-    // Create noise buffer for percussion
-    const bufferSize = this.audioContext.sampleRate * duration;
+  private playHihat(time: number): void {
+    if (!this.audioContext || !this.rhythmGain) return;
+    
+    // Use noise for hi-hat
+    const bufferSize = this.audioContext.sampleRate * 0.05;
     const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
     const data = buffer.getChannelData(0);
-
+    
     for (let i = 0; i < bufferSize; i++) {
       data[i] = Math.random() * 2 - 1;
     }
+    
+    const noise = this.audioContext.createBufferSource();
+    noise.buffer = buffer;
+    
+    const filter = this.audioContext.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.value = 8000;
+    
+    const gain = this.audioContext.createGain();
+    gain.gain.setValueAtTime(0.3, time);
+    gain.gain.exponentialRampToValueAtTime(0.01, time + 0.05);
+    
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.rhythmGain);
+    
+    noise.start(time);
+    noise.stop(time + 0.05);
+  }
 
-    const source = this.audioContext.createBufferSource();
-    source.buffer = buffer;
+  private playClap(time: number): void {
+    if (!this.audioContext || !this.rhythmGain) return;
+    
+    // Clap is made of multiple noise bursts
+    const clapGain = this.audioContext.createGain();
+    clapGain.gain.setValueAtTime(0.8, time);
+    clapGain.gain.exponentialRampToValueAtTime(0.01, time + 0.15);
+    clapGain.connect(this.rhythmGain);
+    
+    // Three noise bursts for clap effect
+    for (let i = 0; i < 3; i++) {
+      const bufferSize = this.audioContext.sampleRate * 0.02;
+      const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+      const data = buffer.getChannelData(0);
+      
+      for (let j = 0; j < bufferSize; j++) {
+        data[j] = Math.random() * 2 - 1;
+      }
+      
+      const noise = this.audioContext.createBufferSource();
+      noise.buffer = buffer;
+      
+      const filter = this.audioContext.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = 2000;
+      filter.Q.value = 1;
+      
+      noise.connect(filter);
+      filter.connect(clapGain);
+      
+      noise.start(time + i * 0.01);
+      noise.stop(time + i * 0.01 + 0.02);
+    }
+  }
 
-    const gainNode = this.audioContext.createGain();
+  /**
+   * Play a synth sound triggered by a blockchain event
+   * Called externally when blocks/transactions are detected
+   */
+  public playBlockSound(): void {
+    if (!this.isPlaying || !this.audioContext || !this.synthGain) return;
+    
+    const freq = this.BLOCK_NOTES[Math.floor(Math.random() * this.BLOCK_NOTES.length)];
+    this.playSynth({
+      frequency: freq,
+      type: 'sine',
+      gain: 0.5,
+      attack: 0.02,
+      decay: 0.3,
+      release: 0.2,
+      filterFreq: 1200
+    });
+  }
+
+  public playTransactionSound(type: TransactionType): void {
+    if (!this.isPlaying || !this.audioContext || !this.synthGain) return;
+    
+    let notes: number[];
+    let oscType: OscillatorType;
+    let decay: number;
+    
+    switch (type) {
+      case 'transfer':
+        notes = this.TRANSFER_NOTES;
+        oscType = 'sine';
+        decay = 0.15;
+        break;
+      case 'contract':
+        notes = this.CONTRACT_NOTES;
+        oscType = 'sawtooth';
+        decay = 0.4;
+        break;
+      case 'token':
+        notes = this.TOKEN_NOTES;
+        oscType = 'triangle';
+        decay = 0.25;
+        break;
+      case 'inference':
+        notes = this.INFERENCE_NOTES;
+        oscType = 'square';
+        decay = 0.5;
+        break;
+      default:
+        notes = this.TRANSFER_NOTES;
+        oscType = 'sine';
+        decay = 0.2;
+    }
+    
+    const freq = notes[Math.floor(Math.random() * notes.length)];
+    
+    this.playSynth({
+      frequency: freq,
+      type: oscType,
+      gain: 0.3,
+      attack: 0.01,
+      decay,
+      release: 0.1,
+      filterFreq: type === 'inference' ? 800 : 2000
+    });
+  }
+
+  private playSynth(config: SynthSound): void {
+    if (!this.audioContext || !this.synthGain) return;
+    
     const now = this.audioContext.currentTime;
+    
+    // Create oscillator
+    const osc = this.audioContext.createOscillator();
+    osc.type = config.type;
+    osc.frequency.value = config.frequency;
+    
+    // Add slight detune for richness
+    const osc2 = this.audioContext.createOscillator();
+    osc2.type = config.type;
+    osc2.frequency.value = config.frequency * 1.002; // Slight detune
+    
+    // Filter for tone shaping
+    const filter = this.audioContext.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = config.filterFreq || 2000;
+    filter.Q.value = 1;
+    
+    // Envelope
+    const gain = this.audioContext.createGain();
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(config.gain, now + config.attack);
+    gain.gain.exponentialRampToValueAtTime(config.gain * 0.3, now + config.attack + config.decay);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + config.attack + config.decay + config.release);
+    
+    // Connect
+    osc.connect(filter);
+    osc2.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.synthGain);
+    
+    // Play
+    osc.start(now);
+    osc2.start(now);
+    osc.stop(now + config.attack + config.decay + config.release + 0.1);
+    osc2.stop(now + config.attack + config.decay + config.release + 0.1);
+  }
 
-    gainNode.gain.setValueAtTime(0.1, now);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
-
-    source.connect(gainNode);
-    gainNode.connect(this.masterGain);
-
-    source.start(now);
-
-    this.activeVoices.set(voiceId, source);
-    this.gainNodes.set(voiceId, gainNode);
+  /**
+   * Play a "big" sound for significant events (new block with multiple txs, etc.)
+   */
+  public playBigEventSound(): void {
+    if (!this.isPlaying || !this.audioContext || !this.synthGain) return;
+    
+    // Play a chord with longer decay
+    const chord = [261.63, 329.63, 392.00]; // C major chord
+    
+    chord.forEach((freq, i) => {
+      setTimeout(() => {
+        this.playSynth({
+          frequency: freq,
+          type: 'sine',
+          gain: 0.4,
+          attack: 0.05,
+          decay: 0.5,
+          release: 0.3,
+          filterFreq: 1500
+        });
+      }, i * 30);
+    });
   }
 
   public getIsPlaying(): boolean {
     return this.isPlaying;
   }
 }
-
-// Track previous note frequencies for portamento
-const previousNoteFreq: { [channelId: number]: number } = {};
-const oscillatorWasPlaying: { [channelId: number]: boolean } = {};

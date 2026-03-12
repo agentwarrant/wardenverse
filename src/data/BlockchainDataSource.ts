@@ -16,6 +16,8 @@ export interface Block {
   parentHash: string;
 }
 
+export type TransactionType = 'transfer' | 'contract' | 'token' | 'inference';
+
 export interface Transaction {
   hash: string;
   blockNumber: number;
@@ -23,7 +25,7 @@ export interface Transaction {
   to: string | null;
   value: string;
   gasPrice: string;
-  type: 'transfer' | 'contract' | 'token' | 'inference';
+  type: TransactionType;
 }
 
 type BlockCallback = (block: Block) => void;

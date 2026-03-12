@@ -5,6 +5,7 @@
 
 import { Engine } from './core/Engine';
 import { BlockchainDataSource } from './data/BlockchainDataSource';
+import { TransactionType } from './data/BlockchainDataSource';
 import { MusicSystem } from './core/MusicSystem';
 
 async function main() {
@@ -26,7 +27,8 @@ async function main() {
   // Initialize the rendering engine
   const engine = new Engine(canvas);
   
-  // Initialize the music system (keygen-style chiptune)
+  // Initialize the reactive music system
+  // House rhythm plays continuously, synth notes triggered by blockchain events
   const musicSystem = new MusicSystem();
   let musicEnabled = false;
   
@@ -82,10 +84,23 @@ async function main() {
       // Update stats
       if (blockHeightEl) blockHeightEl.textContent = block.number.toLocaleString();
       if (txCountEl) txCountEl.textContent = block.transactions.length.toString();
+      
+      // Play block sound and big event sound for blocks with many transactions
+      if (musicEnabled) {
+        musicSystem.playBlockSound();
+        if (block.transactions.length >= 5) {
+          musicSystem.playBigEventSound();
+        }
+      }
     });
 
     dataSource.onTransaction((tx) => {
       engine.addTransaction(tx);
+      
+      // Play transaction sound based on type
+      if (musicEnabled) {
+        musicSystem.playTransactionSound(tx.type);
+      }
     });
 
     // Get initial block
