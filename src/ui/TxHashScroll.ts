@@ -22,11 +22,11 @@ export class TxHashScroll {
       bottom: 20px;
       right: 20px;
       font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
-      font-size: 10px;
+      font-size: 20px;
       text-align: right;
       pointer-events: none;
       z-index: 50;
-      line-height: 1.6;
+      line-height: 1.5;
     `;
     
     document.body.appendChild(this.container);
