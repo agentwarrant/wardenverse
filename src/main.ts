@@ -61,7 +61,13 @@ async function main() {
   let txCount = 0;
   let localTxCount = 0; // Transactions counted locally since page load
   let blockCount = 0;
-  let chainStatsBaseTotal = 0; // Baseline total from chain stats API
+  let chainStatsBaseTotal = 0; // Baseline total from chain stats API or initial config
+  
+  // Initialize with hardcoded initial total from chain config
+  if (currentChain.initialTotalTransactions) {
+    chainStatsBaseTotal = currentChain.initialTotalTransactions;
+    if (totalTxsEl) totalTxsEl.textContent = chainStatsBaseTotal.toLocaleString();
+  }
   
   // Fetch chain stats on startup to get historical total transactions
   const fetchChainStats = async () => {
@@ -72,11 +78,11 @@ async function main() {
       // Total = base + local transactions counted since load
       const newTotal = chainStatsBaseTotal + localTxCount;
       if (totalTxsEl) totalTxsEl.textContent = newTotal.toLocaleString();
-      console.log(`Updated chain stats: ${chainStatsBaseTotal.toLocaleString()} historical + ${localTxCount.toLocaleString()} local = ${newTotal.toLocaleString()} total`);
+      console.log(`Updated chain stats from API: ${chainStatsBaseTotal.toLocaleString()} historical + ${localTxCount.toLocaleString()} local = ${newTotal.toLocaleString()} total`);
     }
   };
   
-  // Start fetching chain stats immediately
+  // Try fetching chain stats on startup (will fallback to initial config if API unavailable)
   fetchChainStats();
   
   // Refresh chain stats periodically (every 5 minutes)

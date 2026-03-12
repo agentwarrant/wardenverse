@@ -15,6 +15,7 @@ export interface Chain {
   };
   explorerUrl?: string;
   statsApiUrl?: string; // URL to fetch chain stats (total transactions, etc.)
+  initialTotalTransactions?: number; // Fallback initial total if API unavailable
   blockTime?: number; // Average block time in seconds
   // Chain-specific contract addresses (optional)
   contracts?: {
@@ -41,6 +42,10 @@ export const CHAINS: Chain[] = [
     explorerUrl: 'https://explorer.wardenprotocol.org',
     statsApiUrl: 'https://explorer.wardenprotocol.org/api/v1',
     blockTime: 6, // ~6 seconds
+    // Initial total transactions - updated 2026-03-12
+    // This will be incremented in real-time as new blocks arrive
+    // Can be manually updated or refreshed via backend proxy
+    initialTotalTransactions: 29102000,
     contracts: {
       proofOfInference: '0x510b5Df4612380c6564320d7DbbfdBe72AC0d529'
     },
