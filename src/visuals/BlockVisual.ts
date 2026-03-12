@@ -1,12 +1,54 @@
 /**
- * BlockVisual - Visual representation of a blockchain block
- * Renders as a pixelated planet/star with Noita-style effects
+ * BlockVisual - Pixel art representation of a blockchain block
+ * Renders as a chunky pixel-art star/planet
  */
 
 import type { Engine, Block } from '../core/Engine';
 import { PixelWorld } from '../core/PixelWorld';
 import { PixelType } from '../core/PixelTypes';
 import { PIXEL_SIZE } from '../core/Config';
+
+// Predefined pixel-art block patterns (8x8 grid that gets scaled)
+const BLOCK_PATTERNS = {
+  star: [
+    [0,0,0,1,1,0,0,0],
+    [0,0,1,2,2,1,0,0],
+    [0,1,2,3,3,2,1,0],
+    [1,2,3,3,3,3,2,1],
+    [1,2,3,3,3,3,2,1],
+    [0,1,2,3,3,2,1,0],
+    [0,0,1,2,2,1,0,0],
+    [0,0,0,1,1,0,0,0],
+  ],
+  planet: [
+    [0,0,1,1,1,1,0,0],
+    [0,1,2,2,3,2,1,0],
+    [1,2,3,3,3,3,2,1],
+    [1,2,3,4,4,3,2,1],
+    [1,2,3,4,4,3,2,1],
+    [1,2,3,3,3,3,2,1],
+    [0,1,2,2,3,2,1,0],
+    [0,0,1,1,1,1,0,0],
+  ]
+};
+
+// Color palettes for block types
+const BLOCK_COLORS: { [pattern: string]: { [key: number]: [number, number, number] | null } } = {
+  star: {
+    0: null, // transparent
+    1: [251, 191, 36], // outer glow
+    2: [251, 217, 96], // mid
+    3: [254, 243, 199], // core
+    4: [255, 255, 255], // center
+  },
+  planet: {
+    0: null,
+    1: [180, 83, 9], // dark edge
+    2: [245, 158, 11], // mid
+    3: [251, 191, 36], // bright
+    4: [254, 243, 199], // highlight
+  }
+};
 
 export class BlockVisual {
   private block: Block;
@@ -17,11 +59,11 @@ export class BlockVisual {
   private targetSize: number = 20;
   private pulsePhase: number = 0;
   private birthTime: number = 0;
-  private particles: Array<{ x: number; y: number; vx: number; vy: number; life: number; type: string }> = [];
-  private ringParticles: Array<{ angle: number; dist: number; speed: number; size: number }> = [];
   private activityLevel: number = 0;
   private screenWidth: number;
   private screenHeight: number;
+  private pattern: number[][];
+  private colors: { [key: number]: [number, number, number] | null };
 
   constructor(block: Block, world: PixelWorld, screenWidth: number, screenHeight: number) {
     this.block = block;
@@ -30,26 +72,27 @@ export class BlockVisual {
     this.screenWidth = screenWidth;
     this.screenHeight = screenHeight;
     
-    // Position based on block number (spiral pattern)
     this.initPosition();
     
     // Size based on transaction count
-    this.targetSize = 20 + Math.min(block.transactions.length * 3, 40);
+    this.targetSize = 20 + Math.min(block.transactions.length * 2, 25);
     this.size = 0;
     
-    // Activity level based on gas used
+    // Activity level
     this.activityLevel = Math.min(parseInt(block.gasUsed) / 1000000, 1);
     
-    // Create birth explosion
+    // Choose pattern based on activity
+    this.pattern = this.activityLevel > 0.5 ? BLOCK_PATTERNS.star : BLOCK_PATTERNS.planet;
+    this.colors = this.activityLevel > 0.5 ? BLOCK_COLORS.star : BLOCK_COLORS.planet;
+    
     this.createBirthExplosion();
-    this.initializeRings();
   }
 
   private initPosition(): void {
     const angle = (this.block.number * 0.1) % (Math.PI * 2);
-    const radius = Math.min(this.screenWidth, this.screenHeight) * 0.15 + (this.block.number % 10) * 25;
-    this.x = this.screenWidth / 2 + Math.cos(angle) * radius + (Math.random() - 0.5) * 50;
-    this.y = this.screenHeight / 2 + Math.sin(angle) * radius + (Math.random() - 0.5) * 50;
+    const radius = Math.min(this.screenWidth, this.screenHeight) * 0.15 + (this.block.number % 10) * 20;
+    this.x = this.screenWidth / 2 + Math.cos(angle) * radius;
+    this.y = this.screenHeight / 2 + Math.sin(angle) * radius;
   }
 
   updateScreenDimensions(width: number, height: number): void {
@@ -59,181 +102,99 @@ export class BlockVisual {
   }
 
   private createBirthExplosion(): void {
-    const explosionRadius = 20 + this.targetSize;
+    const explosionRadius = 15 + this.targetSize / 2;
     this.world.createExplosion(this.x, this.y, explosionRadius, 1 + this.activityLevel);
-    this.createSparkles(15 + Math.floor(this.activityLevel * 8), 'birth');
     
-    // Spawn pixels
-    for (let i = 0; i < 20 + this.activityLevel * 10; i++) {
+    // Spawn some pixels
+    for (let i = 0; i < 15; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const dist = 8 + Math.random() * explosionRadius;
-      const px = this.x + Math.cos(angle) * dist;
-      const py = this.y + Math.sin(angle) * dist;
-      const types = [PixelType.SPARK, PixelType.FIRE, PixelType.PLASMA];
-      const type = types[Math.floor(Math.random() * types.length)];
-      this.world.setPixelScreen(px, py, type);
-    }
-  }
-
-  private createSparkles(count: number, type: 'birth' | 'active' | 'death'): void {
-    for (let i = 0; i < count; i++) {
-      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.3;
-      const speed = type === 'birth' ? 2 + Math.random() * 3 : 1 + Math.random() * 1.5;
-      this.particles.push({
-        x: this.x,
-        y: this.y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        life: 1,
-        type: type === 'birth' ? 'explosion' : 'sparkle'
-      });
-    }
-  }
-
-  private initializeRings(): void {
-    const ringCount = 2 + Math.floor(this.activityLevel * 2);
-    for (let i = 0; i < ringCount; i++) {
-      this.ringParticles.push({
-        angle: Math.random() * Math.PI * 2,
-        dist: this.targetSize * 1.2 + Math.random() * 15,
-        speed: 0.5 + Math.random() * 0.5,
-        size: 1 + Math.random() * 1.5
-      });
+      const dist = 5 + Math.random() * explosionRadius;
+      this.world.setPixelScreen(
+        this.x + Math.cos(angle) * dist,
+        this.y + Math.sin(angle) * dist,
+        Math.random() > 0.5 ? PixelType.SPARK : PixelType.FIRE
+      );
     }
   }
 
   update(dt: number): void {
-    // Birth animation
     const age = Date.now() - this.birthTime;
-    if (age < 800) {
-      this.size = this.targetSize * (age / 800);
+    if (age < 600) {
+      this.size = this.targetSize * (age / 600);
     } else {
       this.size = this.targetSize;
     }
     
-    this.pulsePhase += dt * (2.5 + this.activityLevel * 1.5);
-    
-    // Update rings
-    for (const ring of this.ringParticles) {
-      ring.angle += dt * ring.speed;
-    }
-    
-    // Update particles
-    for (const p of this.particles) {
-      p.x += p.vx * dt * 60;
-      p.y += p.vy * dt * 60;
-      p.life -= dt * (p.type === 'explosion' ? 0.7 : 0.4);
-    }
-    this.particles = this.particles.filter(p => p.life > 0);
+    this.pulsePhase += dt * (2 + this.activityLevel);
     
     // Spawn ambient particles
-    if (Math.random() < (0.03 + this.activityLevel * 0.05) * dt * 60) {
-      this.createSparkles(1, 'active');
-      this.spawnWorldParticle();
-    }
-    
-    // Fire/plasma for active blocks
-    if (this.activityLevel > 0.3 && Math.random() < 0.01 * dt * 60) {
+    if (Math.random() < 0.02 * dt * 60 && this.size > 5) {
       const angle = Math.random() * Math.PI * 2;
-      const dist = this.size + Math.random() * 8;
-      const px = this.x + Math.cos(angle) * dist;
-      const py = this.y + Math.sin(angle) * dist;
-      this.world.setPixelScreen(px, py, Math.random() > 0.5 ? PixelType.FIRE : PixelType.PLASMA);
+      const dist = this.size + 3 + Math.random() * 8;
+      this.world.setPixelScreen(
+        this.x + Math.cos(angle) * dist,
+        this.y + Math.sin(angle) * dist,
+        Math.random() > 0.5 ? PixelType.SPARK : PixelType.EMBER
+      );
     }
-  }
-
-  private spawnWorldParticle(): void {
-    const angle = Math.random() * Math.PI * 2;
-    const dist = this.size + 4 + Math.random() * 15;
-    const px = this.x + Math.cos(angle) * dist;
-    const py = this.y + Math.sin(angle) * dist;
-    const types = [PixelType.SPARK, PixelType.EMBER, PixelType.DUST];
-    const type = types[Math.floor(Math.random() * types.length)];
-    this.world.setPixelScreen(px, py, type);
   }
 
   render(ctx: CanvasRenderingContext2D): void {
-    // Quantize to pixel grid for pixel-art look
+    if (this.size < 2) return;
+    
+    // Calculate pixel size for this block
+    const pixelScale = Math.max(1, Math.floor(this.size / 8));
+    const patternSize = 8 * pixelScale;
+    
+    // Position aligned to pixel grid
     const px = Math.floor(this.x / PIXEL_SIZE) * PIXEL_SIZE + PIXEL_SIZE / 2;
     const py = Math.floor(this.y / PIXEL_SIZE) * PIXEL_SIZE + PIXEL_SIZE / 2;
-    const pulseSize = this.size + Math.sin(this.pulsePhase) * 2;
-    const glowIntensity = 0.4 + this.activityLevel * 0.4;
     
-    // Outer glow
-    const outerGlow = ctx.createRadialGradient(px, py, 0, px, py, pulseSize * 3);
-    outerGlow.addColorStop(0, `rgba(251, 191, 36, ${0.15 * glowIntensity})`);
-    outerGlow.addColorStop(0.5, `rgba(251, 191, 36, ${0.05 * glowIntensity})`);
-    outerGlow.addColorStop(1, 'transparent');
-    ctx.fillStyle = outerGlow;
+    // Draw glow (still smooth for atmosphere)
+    const glowSize = this.size * 2;
+    const glowAlpha = 0.15 + this.activityLevel * 0.15;
+    const glow = ctx.createRadialGradient(px, py, 0, px, py, glowSize);
+    glow.addColorStop(0, `rgba(251, 191, 36, ${glowAlpha})`);
+    glow.addColorStop(0.5, `rgba(251, 191, 36, ${glowAlpha * 0.5})`);
+    glow.addColorStop(1, 'transparent');
+    ctx.fillStyle = glow;
     ctx.beginPath();
-    ctx.arc(px, py, pulseSize * 3, 0, Math.PI * 2);
+    ctx.arc(px, py, glowSize, 0, Math.PI * 2);
     ctx.fill();
     
-    // Orbital particles
-    for (const ring of this.ringParticles) {
-      const rx = Math.floor((px + Math.cos(ring.angle) * ring.dist) / PIXEL_SIZE) * PIXEL_SIZE + PIXEL_SIZE / 2;
-      const ry = Math.floor((py + Math.sin(ring.angle) * ring.dist) / PIXEL_SIZE) * PIXEL_SIZE + PIXEL_SIZE / 2;
-      ctx.fillStyle = `rgba(255, 200, 100, ${0.25 + Math.sin(this.pulsePhase + ring.angle) * 0.15})`;
-      ctx.beginPath();
-      ctx.arc(rx, ry, ring.size * PIXEL_SIZE / 2, 0, Math.PI * 2);
-      ctx.fill();
+    // Draw pixel-art block pattern
+    const startX = px - patternSize / 2;
+    const startY = py - patternSize / 2;
+    const pulse = 0.9 + Math.sin(this.pulsePhase) * 0.1;
+    
+    for (let py = 0; py < 8; py++) {
+      for (let px = 0; px < 8; px++) {
+        const colorIdx = this.pattern[py][px];
+        const color = this.colors[colorIdx];
+        if (!color) continue;
+        
+        // Apply pulse to colors
+        const r = Math.min(255, Math.floor(color[0] * pulse));
+        const g = Math.min(255, Math.floor(color[1] * pulse));
+        const b = Math.min(255, Math.floor(color[2] * pulse));
+        
+        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+        ctx.fillRect(
+          startX + px * pixelScale,
+          startY + py * pixelScale,
+          pixelScale,
+          pixelScale
+        );
+      }
     }
     
-    // Main body - planet/star
-    const bodyGradient = ctx.createRadialGradient(
-      px - pulseSize * 0.2, py - pulseSize * 0.2, 0,
-      px, py, pulseSize
-    );
-    const hue = 40 - this.activityLevel * 15;
-    bodyGradient.addColorStop(0, '#fef3c7');
-    bodyGradient.addColorStop(0.25, '#fbbf24');
-    bodyGradient.addColorStop(0.5, `hsl(${hue}, 85%, 50%)`);
-    bodyGradient.addColorStop(0.75, '#b45309');
-    bodyGradient.addColorStop(1, '#78350f');
-    
-    ctx.fillStyle = bodyGradient;
-    ctx.beginPath();
-    ctx.arc(px, py, pulseSize, 0, Math.PI * 2);
-    ctx.fill();
-    
     // Block number (pixelated font)
-    const fontSize = Math.max(8, Math.floor(pulseSize * 0.45));
+    const fontSize = Math.max(4, Math.floor(this.size * 0.3));
     ctx.font = `bold ${fontSize}px monospace`;
     ctx.fillStyle = '#1f2937';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(this.block.number.toString(), px, py);
-    
-    // Render particles (pixelated)
-    for (const p of this.particles) {
-      const ppx = Math.floor(p.x / PIXEL_SIZE) * PIXEL_SIZE + PIXEL_SIZE / 2;
-      const ppy = Math.floor(p.y / PIXEL_SIZE) * PIXEL_SIZE + PIXEL_SIZE / 2;
-      const alpha = p.life;
-      
-      ctx.fillStyle = p.type === 'explosion' 
-        ? `rgba(255, 150, 50, ${alpha * 0.4})` 
-        : `rgba(251, 191, 36, ${alpha * 0.3})`;
-      ctx.beginPath();
-      ctx.arc(ppx, ppy, 2 * PIXEL_SIZE * p.life, 0, Math.PI * 2);
-      ctx.fill();
-      
-      ctx.fillStyle = p.type === 'explosion'
-        ? `rgba(255, 200, 100, ${alpha})`
-        : `rgba(255, 255, 200, ${alpha})`;
-      ctx.beginPath();
-      ctx.arc(ppx, ppy, PIXEL_SIZE * (0.5 + p.life), 0, Math.PI * 2);
-      ctx.fill();
-    }
-    
-    // Activity ring
-    if (this.activityLevel > 0.5) {
-      const ringAlpha = 0.25 + Math.sin(this.pulsePhase * 2) * 0.15;
-      ctx.strokeStyle = `rgba(255, 100, 50, ${ringAlpha})`;
-      ctx.lineWidth = PIXEL_SIZE;
-      ctx.beginPath();
-      ctx.arc(px, py, pulseSize * 1.3 + Math.sin(this.pulsePhase) * 2, 0, Math.PI * 2);
-      ctx.stroke();
-    }
   }
 
   getBlockNumber(): number {

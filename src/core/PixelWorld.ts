@@ -30,11 +30,12 @@ export class PixelWorld {
   private time: number = 0;
 
   constructor(screenWidth: number, screenHeight: number) {
-    this.screenWidth = Math.floor(screenWidth);
-    this.screenHeight = Math.floor(screenHeight);
+    // Use minimum size to ensure grid is valid even with small inputs
+    this.screenWidth = Math.max(100, Math.floor(screenWidth));
+    this.screenHeight = Math.max(100, Math.floor(screenHeight));
     // Physics grid is smaller by PIXEL_SIZE factor
-    this.width = Math.floor(screenWidth / PIXEL_SIZE);
-    this.height = Math.floor(screenHeight / PIXEL_SIZE);
+    this.width = Math.max(25, Math.floor(this.screenWidth / PIXEL_SIZE));
+    this.height = Math.max(25, Math.floor(this.screenHeight / PIXEL_SIZE));
     this.pixels = new Uint8Array(this.width * this.height);
     
     // Create offscreen canvas at physics grid resolution
@@ -56,6 +57,9 @@ export class PixelWorld {
     
     this.initializeWorker();
     this.initialize();
+    
+    // Log dimensions for debugging
+    console.log(`PixelWorld initialized: screen=${this.screenWidth}x${this.screenHeight}, grid=${this.width}x${this.height}, pixelSize=${PIXEL_SIZE}`);
   }
 
   private initializeWorker(): void {
@@ -113,22 +117,30 @@ export class PixelWorld {
   }
 
   resize(screenWidth: number, screenHeight: number): void {
-    this.screenWidth = Math.floor(screenWidth);
-    this.screenHeight = Math.floor(screenHeight);
-    this.width = Math.floor(screenWidth / PIXEL_SIZE);
-    this.height = Math.floor(screenHeight / PIXEL_SIZE);
+    this.screenWidth = Math.max(100, Math.floor(screenWidth));
+    this.screenHeight = Math.max(100, Math.floor(screenHeight));
+    this.width = Math.max(25, Math.floor(this.screenWidth / PIXEL_SIZE));
+    this.height = Math.max(25, Math.floor(this.screenHeight / PIXEL_SIZE));
+    
+    // Replace pixels array with new size
     this.pixels = new Uint8Array(this.width * this.height);
+    
+    // Resize canvases
     this.canvas.width = this.width;
     this.canvas.height = this.height;
     this.imageData = this.ctx.createImageData(this.width, this.height);
     this.glowCanvas.width = this.width;
     this.glowCanvas.height = this.height;
     
+    // Resize worker
     if (this.worker && this.workerReady) {
       this.worker.postMessage({ type: 'resize', width: this.width, height: this.height });
     }
     
+    // Re-initialize particles for the new size
     this.initialize();
+    
+    console.log(`PixelWorld resized: screen=${this.screenWidth}x${this.screenHeight}, grid=${this.width}x${this.height}`);
   }
 
   addBlockEntity(entity: any): void {

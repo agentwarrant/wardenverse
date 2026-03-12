@@ -71,20 +71,24 @@ export class Engine {
       const dpr = window.devicePixelRatio || 1;
       const rect = this.canvas.getBoundingClientRect();
       
+      // Ensure we have valid dimensions
+      const width = Math.max(100, rect.width);
+      const height = Math.max(100, rect.height);
+      
       // Store actual screen dimensions
-      this.screenWidth = rect.width;
-      this.screenHeight = rect.height;
+      this.screenWidth = width;
+      this.screenHeight = height;
       
       // Set canvas buffer size (for sharp rendering)
-      this.canvas.width = rect.width * dpr;
-      this.canvas.height = rect.height * dpr;
+      this.canvas.width = width * dpr;
+      this.canvas.height = height * dpr;
       
       // Reset transform and scale for CSS pixels
       this.ctx.setTransform(1, 0, 0, 1, 0, 0);
       this.ctx.scale(dpr, dpr);
       
       // Update world with actual screen dimensions
-      this.world.resize(rect.width, rect.height);
+      this.world.resize(width, height);
       
       // Update existing entities with new dimensions
       this.updateEntityDimensions();
