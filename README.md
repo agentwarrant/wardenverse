@@ -6,6 +6,38 @@ A visual block explorer for Warden Protocol where transactions, blocks, proofs, 
 
 Transform blockchain data into a living, breathing cosmic visualization inspired by the Noita videogame's pixel physics and visual style.
 
+---
+
+## 🚀 Quick Start for Local Testing
+
+The dev server is configured for network access via Tailscale. Any code changes are automatically reflected with hot reload.
+
+### Start Development Server
+
+```bash
+npm run dev
+```
+
+This starts the dev server accessible at:
+- **Local:** http://localhost:3000/
+- **Tailscale:** http://100.119.109.53:3000/
+- **LAN:** http://192.168.3.19:3000/
+
+### Production Build
+
+For production testing, build and preview:
+
+```bash
+npm run build && npm run preview
+```
+
+### ⚡ Auto-Reload Workflow
+
+When developing, always use `npm run dev` - it automatically:
+- Rebuilds on file changes
+- Hot-reloads the browser
+- Keeps the Tailscale IP accessible
+
 ## Tech Stack
 
 - **Frontend:** TypeScript + Vite
