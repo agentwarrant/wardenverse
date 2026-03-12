@@ -183,13 +183,26 @@ export class BlockchainDataSource {
     // Check if this is a native coin transfer
     const hasValue = tx.value > 0n;
     
+    // ERC-20 transfer function selector: 0xa9059cbb (transfer(address,uint256))
+    // ERC-20 transferFrom selector: 0x23b872dd (transferFrom(address,address,uint256))
+    const ERC20_TRANSFER_SELECTOR = '0xa9059cbb';
+    const ERC20_TRANSFER_FROM_SELECTOR = '0x23b872dd';
+    
     if (tx.to === null) {
       type = 'contract'; // Contract creation
     } else if (proofOfInferenceAddress && tx.to.toLowerCase() === proofOfInferenceAddress) {
       type = 'inference'; // Proof Of Inference contract call (chain-specific)
+    } else if (tx.data && tx.data.length >= 10) {
+      // Check for ERC-20 token transfer
+      const selector = tx.data.slice(0, 10).toLowerCase();
+      if (selector === ERC20_TRANSFER_SELECTOR || selector === ERC20_TRANSFER_FROM_SELECTOR) {
+        type = 'token'; // ERC-20 token transfer
+      } else {
+        type = 'contract'; // Other contract call
+      }
     } else if (hasValue) {
-      // Native coin transfer - show as token with floating coins
-      type = 'token';
+      // Native coin transfer (WARD)
+      type = 'transfer';
     } else if (tx.data && tx.data.length > 2) {
       // Contract call without value (likely ERC-20 approve or similar)
       type = 'contract';
