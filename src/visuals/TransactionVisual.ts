@@ -1,10 +1,11 @@
 /**
  * TransactionVisual - Visual representation of a transaction
- * Renders as a comet/shooting star with Noita-style particle effects
+ * Renders as a pixelated comet with Noita-style particle effects
  */
 
 import { PixelWorld } from '../core/PixelWorld';
 import { PixelType } from '../core/PixelTypes';
+import { PIXEL_SIZE } from '../core/Config';
 import type { Transaction } from '../data/BlockchainDataSource';
 
 export class TransactionVisual {
@@ -20,282 +21,243 @@ export class TransactionVisual {
   private exploded: boolean = false;
   private size: number = 8;
   private intensity: number = 1;
-  private screenWidth: number = 800;
-  private screenHeight: number = 600;
+  private screenWidth: number;
+  private screenHeight: number;
 
-  constructor(tx: Transaction, world: PixelWorld) {
+  constructor(tx: Transaction, world: PixelWorld, screenWidth: number, screenHeight: number) {
     this.tx = tx;
     this.world = world;
+    this.screenWidth = screenWidth;
+    this.screenHeight = screenHeight;
     
-    // Get screen dimensions
-    const res = world.getScreenResolution();
-    this.screenWidth = res.width;
-    this.screenHeight = res.height;
-    
-    // Scale based on transaction value/type
+    // Scale based on transaction type
     if (tx.type === 'token') {
-      this.size = 12;
-      this.intensity = 2;
-    } else if (tx.type === 'contract') {
       this.size = 10;
       this.intensity = 1.5;
+    } else if (tx.type === 'contract') {
+      this.size = 9;
+      this.intensity = 1.2;
     }
     
-    // Start from a random edge (using screen coordinates)
+    // Start from random edge
+    this.initPosition();
+  }
+
+  private initPosition(): void {
     const edge = Math.floor(Math.random() * 4);
     switch (edge) {
-      case 0: // Top
+      case 0:
         this.x = Math.random() * this.screenWidth;
-        this.y = 0;
-        this.vx = (Math.random() - 0.5) * 3;
-        this.vy = 2 + Math.random() * 3;
+        this.y = -20;
+        this.vx = (Math.random() - 0.5) * 2;
+        this.vy = 1.5 + Math.random() * 2;
         break;
-      case 1: // Right
-        this.x = this.screenWidth;
+      case 1:
+        this.x = this.screenWidth + 20;
         this.y = Math.random() * this.screenHeight;
-        this.vx = -(2 + Math.random() * 3);
-        this.vy = (Math.random() - 0.5) * 3;
+        this.vx = -(1.5 + Math.random() * 2);
+        this.vy = (Math.random() - 0.5) * 2;
         break;
-      case 2: // Bottom
+      case 2:
         this.x = Math.random() * this.screenWidth;
-        this.y = this.screenHeight;
-        this.vx = (Math.random() - 0.5) * 3;
-        this.vy = -(2 + Math.random() * 3);
+        this.y = this.screenHeight + 20;
+        this.vx = (Math.random() - 0.5) * 2;
+        this.vy = -(1.5 + Math.random() * 2);
         break;
-      case 3: // Left
-        this.x = 0;
+      case 3:
+        this.x = -20;
         this.y = Math.random() * this.screenHeight;
-        this.vx = 2 + Math.random() * 3;
-        this.vy = (Math.random() - 0.5) * 3;
+        this.vx = 1.5 + Math.random() * 2;
+        this.vy = (Math.random() - 0.5) * 2;
         break;
     }
   }
 
+  updateScreenDimensions(width: number, height: number): void {
+    this.screenWidth = width;
+    this.screenHeight = height;
+  }
+
   update(dt: number): void {
-    // Move
     this.x += this.vx * dt * 60;
     this.y += this.vy * dt * 60;
     
-    // Add to trail with type-specific effects
-    this.trail.push({ 
-      x: this.x, 
-      y: this.y, 
-      life: 1,
-      type: this.tx.type 
-    });
+    this.trail.push({ x: this.x, y: this.y, life: 1, type: this.tx.type });
     
-    // Update trail
     for (const t of this.trail) {
-      t.life -= dt * 2;
+      t.life -= dt * 1.8;
     }
     this.trail = this.trail.filter(t => t.life > 0);
     
-    // Spawn pixel particles in the world (using screen coordinates)
+    // Spawn particles
     this.particleTimer += dt;
-    if (this.particleTimer > 0.03) { // Reduced rate for performance
+    if (this.particleTimer > 0.04) {
       this.particleTimer = 0;
       this.spawnParticles();
     }
     
-    // Decrease life when off screen
-    if (this.x < -50 || this.x > this.screenWidth + 50 ||
-        this.y < -50 || this.y > this.screenHeight + 50) {
-      this.life -= dt * 2;
-      
-      // Create explosion when leaving
+    // Off-screen check
+    if (this.x < -40 || this.x > this.screenWidth + 40 ||
+        this.y < -40 || this.y > this.screenHeight + 40) {
+      this.life -= dt * 1.5;
       if (!this.exploded) {
         this.exploded = true;
         this.createExitExplosion();
       }
     }
     
-    // Limit trail length
-    const maxTrail = this.tx.type === 'token' ? 30 : this.tx.type === 'contract' ? 20 : 15;
+    // Limit trail
+    const maxTrail = this.tx.type === 'token' ? 25 : this.tx.type === 'contract' ? 18 : 12;
     while (this.trail.length > maxTrail) {
       this.trail.shift();
     }
   }
 
   private spawnParticles(): void {
-    // Spawn particles along the trail (reduced count for performance)
-    const particleCount = this.tx.type === 'token' ? 3 : this.tx.type === 'contract' ? 2 : 1;
-    
-    for (let i = 0; i < particleCount; i++) {
-      const trailIdx = Math.floor(Math.random() * Math.min(this.trail.length, 8));
+    const count = this.tx.type === 'token' ? 2 : this.tx.type === 'contract' ? 1 : 1;
+    for (let i = 0; i < count; i++) {
+      const trailIdx = Math.floor(Math.random() * Math.min(this.trail.length, 6));
       if (trailIdx < this.trail.length) {
         const t = this.trail[trailIdx];
-        const px = t.x + (Math.random() - 0.5) * 6;
-        const py = t.y + (Math.random() - 0.5) * 6;
+        const px = t.x + (Math.random() - 0.5) * 5;
+        const py = t.y + (Math.random() - 0.5) * 5;
         
         let pixelType: PixelType;
         switch (this.tx.type) {
           case 'token':
-            pixelType = Math.random() > 0.5 ? PixelType.TOKEN : PixelType.SPARK;
+            pixelType = Math.random() > 0.6 ? PixelType.TOKEN : PixelType.SPARK;
             break;
           case 'contract':
-            pixelType = Math.random() > 0.5 ? PixelType.PLASMA : PixelType.ELECTRIC;
+            pixelType = Math.random() > 0.6 ? PixelType.PLASMA : PixelType.ELECTRIC;
             break;
           default:
             pixelType = Math.random() > 0.7 ? PixelType.COMET : PixelType.SPARK;
         }
-        
         this.world.setPixelScreen(px, py, pixelType);
       }
     }
   }
 
   private createExitExplosion(): void {
-    // Create an explosion at the exit point
-    const explosionRadius = this.tx.type === 'token' ? 25 : this.tx.type === 'contract' ? 20 : 12;
-    this.world.createExplosion(
-      this.x,
-      this.y,
-      explosionRadius,
-      this.intensity
-    );
+    const radius = this.tx.type === 'token' ? 20 : this.tx.type === 'contract' ? 16 : 10;
+    this.world.createExplosion(this.x, this.y, radius, this.intensity);
     
-    // For token transfers, create extra sparkle (reduced count)
     if (this.tx.type === 'token') {
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 8; i++) {
         const angle = Math.random() * Math.PI * 2;
-        const dist = Math.random() * 15;
-        const px = this.x + Math.cos(angle) * dist;
-        const py = this.y + Math.sin(angle) * dist;
-        this.world.setPixelScreen(px, py, PixelType.TOKEN);
+        const dist = Math.random() * 12;
+        this.world.setPixelScreen(
+          this.x + Math.cos(angle) * dist,
+          this.y + Math.sin(angle) * dist,
+          PixelType.TOKEN
+        );
       }
     }
   }
 
   render(ctx: CanvasRenderingContext2D): void {
-    // Trail with enhanced effects
+    // Quantize head position
+    const px = Math.floor(this.x / PIXEL_SIZE) * PIXEL_SIZE + PIXEL_SIZE / 2;
+    const py = Math.floor(this.y / PIXEL_SIZE) * PIXEL_SIZE + PIXEL_SIZE / 2;
+    
+    // Trail
     for (let i = 0; i < this.trail.length; i++) {
       const t = this.trail[i];
-      const alpha = t.life * 0.6;
+      const tpx = Math.floor(t.x / PIXEL_SIZE) * PIXEL_SIZE + PIXEL_SIZE / 2;
+      const tpy = Math.floor(t.y / PIXEL_SIZE) * PIXEL_SIZE + PIXEL_SIZE / 2;
+      const alpha = t.life * 0.5;
       const progress = i / this.trail.length;
-      const size = 2 + progress * this.size * 0.5;
+      const trailSize = PIXEL_SIZE * (0.5 + progress * 0.8);
       
-      // Color based on transaction type with enhanced visuals
       let color: string;
-      let glowColor: string;
-      
       switch (t.type) {
         case 'token':
-          // Bright green with gold shimmer for token transfers
-          const shimmer = 0.5 + 0.5 * Math.sin(this.life * 20 + i * 0.3);
           color = `rgba(52, 211, 153, ${alpha})`;
-          glowColor = `rgba(52, 211, 153, ${alpha * 0.3 * shimmer})`;
           break;
         case 'contract':
-          // Pink with purple plasma for contract calls
           color = `rgba(244, 114, 182, ${alpha})`;
-          glowColor = `rgba(200, 150, 255, ${alpha * 0.3})`;
           break;
         default:
-          // Blue with electric glow for regular transfers
           color = `rgba(96, 165, 250, ${alpha})`;
-          glowColor = `rgba(150, 200, 255, ${alpha * 0.2})`;
       }
       
-      // Draw glow
-      ctx.fillStyle = glowColor;
+      // Glow
+      ctx.fillStyle = color.replace(/[\d.]+\)$/, `${alpha * 0.2})`);
       ctx.beginPath();
-      ctx.arc(t.x, t.y, size * 2.5, 0, Math.PI * 2);
+      ctx.arc(tpx, tpy, trailSize * 2, 0, Math.PI * 2);
       ctx.fill();
       
-      // Draw particle
+      // Core
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.arc(t.x, t.y, size, 0, Math.PI * 2);
+      ctx.arc(tpx, tpy, trailSize, 0, Math.PI * 2);
       ctx.fill();
       
-      // Draw bright core for token transfers
-      if (t.type === 'token' && i > this.trail.length * 0.7) {
-        ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.5})`;
+      // Bright center for token
+      if (t.type === 'token' && i > this.trail.length * 0.6) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.4})`;
         ctx.beginPath();
-        ctx.arc(t.x, t.y, size * 0.3, 0, Math.PI * 2);
+        ctx.arc(tpx, tpy, trailSize * 0.3, 0, Math.PI * 2);
         ctx.fill();
       }
     }
     
-    // Main comet head with enhanced effects
-    const headGradient = ctx.createRadialGradient(
-      this.x, this.y, 0,
-      this.x, this.y, this.size * 2
-    );
+    // Main comet head
+    const headSize = this.size;
     
-    let color1: string, color2: string, color3: string;
+    // Colors by type
+    let color1: string, color2: string;
     switch (this.tx.type) {
       case 'token':
-        color1 = '#ffffff';
-        color2 = '#34d399';
-        color3 = 'rgba(52, 211, 153, 0)';
+        color1 = '#34d399';
+        color2 = 'rgba(52, 211, 153, 0)';
         break;
       case 'contract':
-        color1 = '#ffffff';
-        color2 = '#f472b6';
-        color3 = 'rgba(200, 150, 255, 0)';
+        color1 = '#f472b6';
+        color2 = 'rgba(244, 114, 182, 0)';
         break;
       default:
-        color1 = '#ffffff';
-        color2 = '#60a5fa';
-        color3 = 'rgba(96, 165, 250, 0)';
+        color1 = '#60a5fa';
+        color2 = 'rgba(96, 165, 250, 0)';
     }
-    
-    headGradient.addColorStop(0, color1);
-    headGradient.addColorStop(0.3, color2);
-    headGradient.addColorStop(1, color3);
     
     // Outer glow
-    const glowGradient = ctx.createRadialGradient(
-      this.x, this.y, 0,
-      this.x, this.y, this.size * 4
-    );
-    
-    switch (this.tx.type) {
-      case 'token':
-        glowGradient.addColorStop(0, 'rgba(52, 211, 153, 0.5)');
-        glowGradient.addColorStop(0.5, 'rgba(52, 211, 153, 0.2)');
-        glowGradient.addColorStop(1, 'rgba(52, 211, 153, 0)');
-        break;
-      case 'contract':
-        glowGradient.addColorStop(0, 'rgba(244, 114, 182, 0.5)');
-        glowGradient.addColorStop(0.5, 'rgba(200, 150, 255, 0.2)');
-        glowGradient.addColorStop(1, 'rgba(200, 150, 255, 0)');
-        break;
-      default:
-        glowGradient.addColorStop(0, 'rgba(96, 165, 250, 0.4)');
-        glowGradient.addColorStop(0.5, 'rgba(96, 165, 250, 0.15)');
-        glowGradient.addColorStop(1, 'rgba(96, 165, 250, 0)');
-    }
-    
+    const glowGradient = ctx.createRadialGradient(px, py, 0, px, py, headSize * 3);
+    glowGradient.addColorStop(0, color1);
+    glowGradient.addColorStop(0.4, color2);
+    glowGradient.addColorStop(1, 'transparent');
     ctx.fillStyle = glowGradient;
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size * 4, 0, Math.PI * 2);
+    ctx.arc(px, py, headSize * 3, 0, Math.PI * 2);
     ctx.fill();
     
+    // Head gradient
+    const headGradient = ctx.createRadialGradient(px, py, 0, px, py, headSize);
+    headGradient.addColorStop(0, '#ffffff');
+    headGradient.addColorStop(0.35, color1);
+    headGradient.addColorStop(1, color2);
     ctx.fillStyle = headGradient;
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size * 2, 0, Math.PI * 2);
+    ctx.arc(px, py, headSize, 0, Math.PI * 2);
     ctx.fill();
     
-    // Bright core
-    ctx.fillStyle = color1;
+    // Core
+    ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size * 0.4, 0, Math.PI * 2);
+    ctx.arc(px, py, headSize * 0.35, 0, Math.PI * 2);
     ctx.fill();
     
-    // Extra sparkle for token transfers
+    // Sparkle for token
     if (this.tx.type === 'token') {
-      const sparkleTime = Date.now() * 0.01;
-      for (let i = 0; i < 4; i++) {
-        const angle = (i / 4) * Math.PI * 2 + sparkleTime;
-        const dist = this.size * 1.5;
-        const sx = this.x + Math.cos(angle) * dist;
-        const sy = this.y + Math.sin(angle) * dist;
-        
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+      const sparkleTime = Date.now() * 0.008;
+      for (let i = 0; i < 3; i++) {
+        const angle = (i / 3) * Math.PI * 2 + sparkleTime;
+        const dist = headSize * 1.2;
+        const sx = px + Math.cos(angle) * dist;
+        const sy = py + Math.sin(angle) * dist;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
         ctx.beginPath();
-        ctx.arc(sx, sy, 1.5, 0, Math.PI * 2);
+        ctx.arc(sx, sy, PIXEL_SIZE * 0.4, 0, Math.PI * 2);
         ctx.fill();
       }
     }

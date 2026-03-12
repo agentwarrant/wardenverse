@@ -45,13 +45,16 @@ export class Engine {
   private txCountElement: HTMLElement | null;
   private time: number = 0;
   private ambientParticleTimer: number = 0;
+  private screenWidth: number = 800;
+  private screenHeight: number = 600;
+  private initialized: boolean = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Could not get 2D context');
     this.ctx = ctx;
-    // Pass screen size - PixelWorld will handle PIXEL_SIZE scaling
+    // Will be properly sized in setupCanvas()
     this.world = new PixelWorld(800, 600);
     this.fpsElement = document.getElementById('fps');
     this.resolutionElement = document.getElementById('resolution');
@@ -60,21 +63,45 @@ export class Engine {
     
     this.setupCanvas();
     this.setupEventListeners();
+    this.initialized = true;
   }
 
   private setupCanvas(): void {
     const resize = () => {
       const dpr = window.devicePixelRatio || 1;
       const rect = this.canvas.getBoundingClientRect();
+      
+      // Store actual screen dimensions
+      this.screenWidth = rect.width;
+      this.screenHeight = rect.height;
+      
+      // Set canvas buffer size (for sharp rendering)
       this.canvas.width = rect.width * dpr;
       this.canvas.height = rect.height * dpr;
+      
+      // Reset transform and scale for CSS pixels
+      this.ctx.setTransform(1, 0, 0, 1, 0, 0);
       this.ctx.scale(dpr, dpr);
-      // Pass screen dimensions - world handles scaling
+      
+      // Update world with actual screen dimensions
       this.world.resize(rect.width, rect.height);
+      
+      // Update existing entities with new dimensions
+      this.updateEntityDimensions();
     };
     
     resize();
     window.addEventListener('resize', resize);
+  }
+
+  private updateEntityDimensions(): void {
+    // Update all entities with new screen dimensions
+    for (const block of this.blocks.values()) {
+      block.updateScreenDimensions(this.screenWidth, this.screenHeight);
+    }
+    for (const tx of this.pendingTransactions) {
+      tx.updateScreenDimensions(this.screenWidth, this.screenHeight);
+    }
   }
 
   private setupEventListeners(): void {
@@ -84,17 +111,15 @@ export class Engine {
       this.mouseY = e.clientY - rect.top;
     });
     
-    // Click to add particles - varied explosion types
+    // Click to add particles
     this.canvas.addEventListener('click', (e) => {
       const rect = this.canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       
-      // Create explosion (world handles coordinate conversion)
       this.world.createExplosion(x, y, 40, 2);
       
-      // Add varied particles using screen coordinates
-      for (let i = 0; i < 30; i++) { // Reduced count for performance
+      for (let i = 0; i < 30; i++) {
         const px = x + (Math.random() - 0.5) * 60;
         const py = y + (Math.random() - 0.5) * 60;
         const types = [
@@ -113,15 +138,13 @@ export class Engine {
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       
-      // Create lightning effect
-      for (let i = 0; i < 15; i++) { // Reduced count
+      for (let i = 0; i < 15; i++) {
         const lx = x + (Math.random() - 0.5) * 100;
         const ly = y + (Math.random() - 0.5) * 100;
         this.world.setPixelScreen(lx, ly, PixelType.LIGHTNING);
       }
       
-      // Add electric particles
-      for (let i = 0; i < 20; i++) { // Reduced count
+      for (let i = 0; i < 20; i++) {
         const angle = Math.random() * Math.PI * 2;
         const dist = Math.random() * 50;
         const ex = x + Math.cos(angle) * dist;
@@ -130,7 +153,7 @@ export class Engine {
       }
     });
     
-    // Mouse drag for continuous particle spray
+    // Mouse drag for particle spray
     let isDragging = false;
     let lastDragX = 0;
     let lastDragY = 0;
@@ -157,11 +180,10 @@ export class Engine {
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
         
-        // Spray particles along the drag path
         const dx = x - lastDragX;
         const dy = y - lastDragY;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        const steps = Math.max(1, Math.floor(dist / 8)); // Reduced for performance
+        const steps = Math.max(1, Math.floor(dist / 8));
         
         for (let i = 0; i < steps; i++) {
           const t = i / steps;
@@ -183,11 +205,10 @@ export class Engine {
   }
 
   addBlock(block: Block): void {
-    const visual = new BlockVisual(block, this.world);
+    const visual = new BlockVisual(block, this.world, this.screenWidth, this.screenHeight);
     this.blocks.set(block.number, visual);
     this.world.addBlockEntity(visual);
     
-    // Remove old blocks if we have too many
     if (this.blocks.size > 50) {
       const oldest = Math.min(...this.blocks.keys());
       const oldVisual = this.blocks.get(oldest);
@@ -197,18 +218,16 @@ export class Engine {
       this.blocks.delete(oldest);
     }
     
-    // Update block count display
     if (this.blockCountElement) {
       this.blockCountElement.textContent = this.blocks.size.toString();
     }
   }
 
   addTransaction(tx: Transaction): void {
-    const visual = new TransactionVisual(tx, this.world);
+    const visual = new TransactionVisual(tx, this.world, this.screenWidth, this.screenHeight);
     this.pendingTransactions.push(visual);
     this.world.addTransactionEntity(visual);
     
-    // Update transaction count
     if (this.txCountElement) {
       const current = parseInt(this.txCountElement.textContent || '0');
       this.txCountElement.textContent = (current + 1).toString();
@@ -241,30 +260,24 @@ export class Engine {
   };
 
   private update(dt: number): void {
-    // Update pixel world physics
     this.world.update(dt);
     
-    // Update block visuals
     for (const block of this.blocks.values()) {
       block.update(dt);
     }
     
-    // Update transaction visuals
     for (const tx of this.pendingTransactions) {
       tx.update(dt);
     }
     
-    // Remove completed transactions
     this.pendingTransactions = this.pendingTransactions.filter(tx => !tx.isComplete());
     
-    // Add ambient particles periodically (reduced rate)
     this.ambientParticleTimer += dt;
-    if (this.ambientParticleTimer > 1.0) { // Increased interval for performance
+    if (this.ambientParticleTimer > 1.0) {
       this.ambientParticleTimer = 0;
       this.addAmbientParticles();
     }
     
-    // Update FPS display
     if (this.fpsElement) {
       this.fpsElement.textContent = this.world.getFps().toString();
     }
@@ -275,29 +288,16 @@ export class Engine {
   }
 
   private addAmbientParticles(): void {
-    const screenRes = this.world.getScreenResolution();
-    
-    // Add ambient particles at edges (reduced count)
+    // Add ambient particles at edges
     for (let i = 0; i < 5; i++) {
       const edge = Math.floor(Math.random() * 4);
       let x, y;
       
       switch (edge) {
-        case 0: // Top
-          x = Math.random() * screenRes.width;
-          y = 0;
-          break;
-        case 1: // Right
-          x = screenRes.width;
-          y = Math.random() * screenRes.height;
-          break;
-        case 2: // Bottom
-          x = Math.random() * screenRes.width;
-          y = screenRes.height;
-          break;
-        default: // Left
-          x = 0;
-          y = Math.random() * screenRes.height;
+        case 0: x = Math.random() * this.screenWidth; y = 0; break;
+        case 1: x = this.screenWidth; y = Math.random() * this.screenHeight; break;
+        case 2: x = Math.random() * this.screenWidth; y = this.screenHeight; break;
+        default: x = 0; y = Math.random() * this.screenHeight;
       }
       
       const types = [PixelType.DUST, PixelType.EMBER, PixelType.SPARK];
@@ -309,7 +309,7 @@ export class Engine {
   private render(): void {
     const rect = this.canvas.getBoundingClientRect();
     
-    // Dark space background with subtle gradient
+    // Dark space background
     const bgGradient = this.ctx.createRadialGradient(
       rect.width / 2, rect.height / 2, 0,
       rect.width / 2, rect.height / 2, Math.max(rect.width, rect.height)
@@ -320,20 +320,25 @@ export class Engine {
     this.ctx.fillStyle = bgGradient;
     this.ctx.fillRect(0, 0, rect.width, rect.height);
     
-    // Render pixel world (handles PIXEL_SIZE scaling internally)
+    // Render pixel world (handles PIXEL_SIZE scaling)
     this.world.render(this.ctx);
     
-    // Render block entities
+    // Render entities with pixel-art style (quantized to PIXEL_SIZE)
+    this.ctx.save();
+    // Disable anti-aliasing for pixel art look
+    this.ctx.imageSmoothingEnabled = false;
+    
     for (const block of this.blocks.values()) {
       block.render(this.ctx);
     }
     
-    // Render transaction entities
     for (const tx of this.pendingTransactions) {
       tx.render(this.ctx);
     }
     
-    // Render mouse glow effect
+    this.ctx.restore();
+    
+    // Mouse glow
     this.renderMouseGlow();
   }
 
