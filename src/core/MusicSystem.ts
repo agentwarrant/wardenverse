@@ -38,10 +38,36 @@ export class MusicSystem {
   private rhythmVolume: number = 0.3;
   private synthVolume: number = 0.08; // Lower volume for synth notes
   
-  // House rhythm pattern (16 steps per bar)
-  private readonly KICK_PATTERN = [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]; // Four-on-the-floor
-  private readonly HIHAT_PATTERN = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]; // Continuous hi-hats
-  private readonly CLAP_PATTERN = [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]; // Claps on 2 and 4
+  // 4 House rhythm variations (16 steps per bar)
+  // Variation 1: Classic four-on-the-floor
+  private readonly KICK_PATTERN_1 = [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0];
+  private readonly HIHAT_PATTERN_1 = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
+  private readonly CLAP_PATTERN_1 = [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0];
+  
+  // Variation 2: Off-beat bass with open hats
+  private readonly KICK_PATTERN_2 = [1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0];
+  private readonly HIHAT_PATTERN_2 = [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1];
+  private readonly CLAP_PATTERN_2 = [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1];
+  
+  // Variation 3: Deep house with syncopation
+  private readonly KICK_PATTERN_3 = [1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0];
+  private readonly HIHAT_PATTERN_3 = [1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0];
+  private readonly CLAP_PATTERN_3 = [0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0];
+  
+  // Variation 4: Tech house with rolling kicks
+  private readonly KICK_PATTERN_4 = [1, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0];
+  private readonly HIHAT_PATTERN_4 = [0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1];
+  private readonly CLAP_PATTERN_4 = [0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1];
+  
+  // Current active patterns (starts with variation 1)
+  private currentKickPattern: number[] = this.KICK_PATTERN_1;
+  private currentHihatPattern: number[] = this.HIHAT_PATTERN_1;
+  private currentClapPattern: number[] = this.CLAP_PATTERN_1;
+  
+  // Variation rotation
+  private currentVariation: number = 1;
+  private variationChangeInterval: ReturnType<typeof setInterval> | null = null;
+  private readonly VARIATION_CHANGE_MS: number = 60000; // 1 minute
   
   // Synth note pool for blockchain events (pentatonic scale - always sounds harmonious)
   private readonly BLOCK_NOTES = [261.63, 293.66, 329.63, 392.00, 440.00]; // C4 pentatonic
@@ -114,6 +140,52 @@ export class MusicSystem {
     this.currentStep = 0;
     this.nextNoteTime = this.audioContext.currentTime;
     this.scheduleRhythm();
+    this.startVariationRotation();
+  }
+  
+  /**
+   * Start rotating through the 4 variations every minute
+   */
+  private startVariationRotation(): void {
+    if (this.variationChangeInterval) {
+      clearInterval(this.variationChangeInterval);
+    }
+    
+    this.variationChangeInterval = setInterval(() => {
+      if (!this.isPlaying) return;
+      
+      this.currentVariation = (this.currentVariation % 4) + 1;
+      this.applyVariation(this.currentVariation);
+      console.log(`🎵 Switched to rhythm variation ${this.currentVariation}`);
+    }, this.VARIATION_CHANGE_MS);
+  }
+  
+  /**
+   * Apply a specific rhythm variation
+   */
+  private applyVariation(variation: number): void {
+    switch (variation) {
+      case 1:
+        this.currentKickPattern = this.KICK_PATTERN_1;
+        this.currentHihatPattern = this.HIHAT_PATTERN_1;
+        this.currentClapPattern = this.CLAP_PATTERN_1;
+        break;
+      case 2:
+        this.currentKickPattern = this.KICK_PATTERN_2;
+        this.currentHihatPattern = this.HIHAT_PATTERN_2;
+        this.currentClapPattern = this.CLAP_PATTERN_2;
+        break;
+      case 3:
+        this.currentKickPattern = this.KICK_PATTERN_3;
+        this.currentHihatPattern = this.HIHAT_PATTERN_3;
+        this.currentClapPattern = this.CLAP_PATTERN_3;
+        break;
+      case 4:
+        this.currentKickPattern = this.KICK_PATTERN_4;
+        this.currentHihatPattern = this.HIHAT_PATTERN_4;
+        this.currentClapPattern = this.CLAP_PATTERN_4;
+        break;
+    }
   }
 
   public stop(): void {
@@ -121,6 +193,10 @@ export class MusicSystem {
     if (this.schedulerId) {
       clearTimeout(this.schedulerId);
       this.schedulerId = null;
+    }
+    if (this.variationChangeInterval) {
+      clearInterval(this.variationChangeInterval);
+      this.variationChangeInterval = null;
     }
   }
 
@@ -146,18 +222,18 @@ export class MusicSystem {
     
     // Schedule notes ahead of time
     while (this.nextNoteTime < this.audioContext.currentTime + 0.1) {
-      // Kick drum
-      if (this.KICK_PATTERN[this.currentStep]) {
+      // Kick drum (uses current variation pattern)
+      if (this.currentKickPattern[this.currentStep]) {
         this.playKick(this.nextNoteTime);
       }
       
-      // Hi-hat
-      if (this.HIHAT_PATTERN[this.currentStep]) {
+      // Hi-hat (uses current variation pattern)
+      if (this.currentHihatPattern[this.currentStep]) {
         this.playHihat(this.nextNoteTime);
       }
       
-      // Clap
-      if (this.CLAP_PATTERN[this.currentStep]) {
+      // Clap (uses current variation pattern)
+      if (this.currentClapPattern[this.currentStep]) {
         this.playClap(this.nextNoteTime);
       }
       
@@ -412,5 +488,12 @@ export class MusicSystem {
 
   public getIsPlaying(): boolean {
     return this.isPlaying;
+  }
+  
+  /**
+   * Get the current rhythm variation (1-4)
+   */
+  public getCurrentVariation(): number {
+    return this.currentVariation;
   }
 }
