@@ -23,19 +23,21 @@
     }
     #header {
       padding: 12px 20px;
-      background: rgba(20, 20, 30, 0.9);
+      background: rgba(20, 20, 30, 0.95);
       border-bottom: 1px solid rgba(100, 100, 150, 0.3);
       display: flex;
       align-items: center;
       gap: 20px;
       z-index: 100;
+      backdrop-filter: blur(10px);
     }
     #header h1 {
-      font-size: 18px;
-      font-weight: 600;
-      background: linear-gradient(135deg, #60a5fa, #a78bfa);
+      font-size: 20px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #60a5fa, #a78bfa, #f472b6);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 30px rgba(96, 165, 250, 0.5);
     }
     #stats {
       display: flex;
@@ -47,15 +49,23 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      background: rgba(30, 30, 45, 0.6);
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(100, 100, 150, 0.2);
     }
     .stat-value {
       font-weight: 600;
-      color: #60a5fa;
+      font-size: 16px;
+      background: linear-gradient(135deg, #60a5fa, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
     .stat-label {
-      font-size: 10px;
-      color: #666;
+      font-size: 9px;
+      color: #888;
       text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
     #canvas-container {
       flex: 1;
@@ -70,38 +80,95 @@
       height: 100%;
       image-rendering: pixelated;
       image-rendering: crisp-edges;
+      cursor: crosshair;
     }
     #overlay {
       position: absolute;
       bottom: 20px;
       left: 20px;
-      background: rgba(20, 20, 30, 0.85);
-      padding: 12px 16px;
-      border-radius: 8px;
+      background: rgba(20, 20, 30, 0.9);
+      padding: 14px 18px;
+      border-radius: 10px;
       font-size: 12px;
-      max-width: 300px;
-      border: 1px solid rgba(100, 100, 150, 0.2);
+      max-width: 320px;
+      border: 1px solid rgba(100, 100, 150, 0.25);
+      backdrop-filter: blur(10px);
+    }
+    #overlay h3 {
+      color: #60a5fa;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    #overlay p {
+      color: #999;
+      line-height: 1.5;
     }
     #legend {
       position: absolute;
-      top: 20px;
+      top: 70px;
       right: 20px;
-      background: rgba(20, 20, 30, 0.85);
-      padding: 12px 16px;
-      border-radius: 8px;
+      background: rgba(20, 20, 30, 0.9);
+      padding: 14px 18px;
+      border-radius: 10px;
       font-size: 11px;
-      border: 1px solid rgba(100, 100, 150, 0.2);
+      border: 1px solid rgba(100, 100, 150, 0.25);
+      backdrop-filter: blur(10px);
+    }
+    #legend h4 {
+      color: #60a5fa;
+      margin-bottom: 10px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .legend-section {
+      margin-bottom: 12px;
+    }
+    .legend-section-title {
+      color: #666;
+      font-size: 10px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
     }
     .legend-item {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-bottom: 6px;
+      gap: 10px;
+      margin-bottom: 5px;
     }
     .legend-color {
-      width: 12px;
-      height: 12px;
-      border-radius: 2px;
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      box-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
+    }
+    .legend-text {
+      color: #bbb;
+    }
+    #controls {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(20, 20, 30, 0.9);
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 11px;
+      color: #888;
+      border: 1px solid rgba(100, 100, 150, 0.25);
+      backdrop-filter: blur(10px);
+    }
+    .control-item {
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .control-key {
+      background: rgba(60, 60, 80, 0.8);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-family: monospace;
+      color: #60a5fa;
     }
     #loading {
       position: absolute;
@@ -109,22 +176,26 @@
       left: 50%;
       transform: translate(-50%, -50%);
       text-align: center;
+      z-index: 200;
     }
     #loading h2 {
-      font-size: 24px;
-      margin-bottom: 10px;
+      font-size: 28px;
+      margin-bottom: 15px;
+      background: linear-gradient(135deg, #60a5fa, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
     #loading p {
       color: #666;
     }
     .spinner {
-      width: 40px;
-      height: 40px;
+      width: 50px;
+      height: 50px;
       border: 3px solid rgba(100, 100, 150, 0.3);
       border-top-color: #60a5fa;
       border-radius: 50%;
       animation: spin 1s linear infinite;
-      margin: 0 auto 20px;
+      margin: 0 auto 25px;
     }
     @keyframes spin {
       to { transform: rotate(360deg); }
@@ -132,27 +203,47 @@
     #performance {
       position: absolute;
       bottom: 20px;
-      right: 20px;
-      background: rgba(20, 20, 30, 0.85);
-      padding: 8px12px;
-      border-radius: 8px;
-      font-size: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(20, 20, 30, 0.9);
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-size: 11px;
       color: #666;
-      border: 1px solid rgba(100, 100, 150, 0.2);
+      border: 1px solid rgba(100, 100, 150, 0.25);
+      backdrop-filter: blur(10px);
+      display: flex;
+      gap: 15px;
     }
     #performance .good { color: #34d399; }
     #performance .ok { color: #fbbf24; }
     #performance .bad { color: #ef4444; }
+    .perf-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .perf-label {
+      color: #888;
+    }
+    .perf-value {
+      font-weight: 600;
+      color: #60a5fa;
+    }
   </style>
 </head>
 <body>
   <div id="app">
     <div id="header">
-      <h1>Wardenverse</h1>
+      <h1>✦ Wardenverse</h1>
       <div id="stats">
         <div class="stat">
           <span class="stat-value" id="block-height">--</span>
           <span class="stat-label">Block</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="block-count">0</span>
+          <span class="stat-label">Active</span>
         </div>
         <div class="stat">
           <span class="stat-value" id="tx-count">--</span>
@@ -172,28 +263,72 @@
         <p>Initializing the universe...</p>
       </div>
       <div id="legend" style="display: none;">
-        <div class="legend-item">
-          <div class="legend-color" style="background: linear-gradient(135deg, #fbbf24, #f59e0b);"></div>
-          <span>Block (Star)</span>
+        <h4>Visual Guide</h4>
+        <div class="legend-section">
+          <div class="legend-section-title">Celestial Bodies</div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: radial-gradient(circle at 30% 30%, #fef3c7, #fbbf24, #78350f);"></div>
+            <span class="legend-text">Block (Star/Planet)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: linear-gradient(135deg, #60a5fa, #3b82f6);"></div>
+            <span class="legend-text">Transaction (Comet)</span>
+          </div>
         </div>
-        <div class="legend-item">
-          <div class="legend-color" style="background: linear-gradient(135deg, #60a5fa, #3b82f6);"></div>
-          <span>Transaction (Comet)</span>
+        <div class="legend-section">
+          <div class="legend-section-title">Transaction Types</div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: linear-gradient(135deg, #34d399, #10b981); box-shadow: 0 0 10px rgba(52, 211, 153, 0.5);"></div>
+            <span class="legend-text">Token Transfer</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: linear-gradient(135deg, #f472b6, #ec4899);"></div>
+            <span class="legend-text">Contract Call</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: linear-gradient(135deg, #60a5fa, #3b82f6);"></div>
+            <span class="legend-text">Regular Transfer</span>
+          </div>
         </div>
-        <div class="legend-item">
-          <div class="legend-color" style="background: linear-gradient(135deg, #34d399, #10b981);"></div>
-          <span>Token Transfer</span>
+        <div class="legend-section">
+          <div class="legend-section-title">Particle Effects</div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: linear-gradient(135deg, #ff9966, #ff6633);"></div>
+            <span class="legend-text">Fire / Explosion</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: linear-gradient(135deg, #a78bfa, #8b5cf6);"></div>
+            <span class="legend-text">Plasma / Energy</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: linear-gradient(135deg, #67e8f9, #22d3ee);"></div>
+            <span class="legend-text">Lightning</span>
+          </div>
         </div>
-        <div class="legend-item">
-          <div class="legend-color" style="background: linear-gradient(135deg, #f472b6, #ec4899);"></div>
-          <span>Contract Call</span>
+      </div>
+      <div id="controls" style="display: none;">
+        <div class="control-item">
+          <span class="control-key">Left Click</span>
+          <span>Create explosion</span>
         </div>
-        <div style="margin-top: 10px; font-size: 10px; color: #666;">
-          Click to add particles
+        <div class="control-item">
+          <span class="control-key">Right Click</span>
+          <span>Lightning bolt</span>
+        </div>
+        <div class="control-item">
+          <span class="control-key">Drag</span>
+          <span>Particle spray</span>
         </div>
       </div>
       <div id="performance">
-        <span id="fps">--</span> FPS | <span id="resolution">--</span>
+        <div class="perf-item">
+          <span class="perf-label">FPS:</span>
+          <span class="perf-value" id="fps">--</span>
+        </div>
+        <div class="perf-item">
+          <span class="perf-label">Resolution:</span>
+          <span class="perf-value" id="resolution">--</span>
+        </div>
       </div>
     </div>
   </div>

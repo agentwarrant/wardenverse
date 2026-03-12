@@ -1,6 +1,6 @@
 /**
  * WebWorker for physics simulation
- * Runs the pixel physics simulation off the main thread
+ * Noita-inspired pixel physics with explosive particle effects
  */
 
 import { PixelType, PIXEL_PROPERTIES } from './PixelTypes';
@@ -10,8 +10,9 @@ type InitMessage = { type: 'init'; width: number; height: number };
 type UpdateMessage = { type: 'update'; dt: number };
 type SetPixelMessage = { type: 'setPixel'; x: number; y: number; pixelType: PixelType };
 type ResizeMessage = { type: 'resize'; width: number; height: number };
+type ExplosionMessage = { type: 'explosion'; x: number; y: number; radius: number; intensity: number };
 
-type WorkerMessage = InitMessage | UpdateMessage | SetPixelMessage | ResizeMessage;
+type WorkerMessage = InitMessage | UpdateMessage | SetPixelMessage | ResizeMessage | ExplosionMessage;
 
 type WorkerResponse =
   | { type: 'ready' }
@@ -23,6 +24,7 @@ let width = 0;
 let height = 0;
 let pixels: Uint8Array;
 let pixelData: Float32Array; // velocity, temperature, lifetime, etc.
+let pendingExplosions: Array<{ x: number; y: number; radius: number; intensity: number }> = [];
 
 function initialize(w: number, h: number): void {
   width = Math.floor(w);
@@ -33,17 +35,116 @@ function initialize(w: number, h: number): void {
   // Initialize with empty space
   pixels.fill(PixelType.EMPTY);
   
-  // Add ambient stars
-  for (let i = 0; i <200; i++) {
+  // Add dense ambient particles for crowded feel
+  addAmbientParticles();
+}
+
+function addAmbientParticles(): void {
+  // Add many more stars for crowded feel
+  for (let i = 0; i < 500; i++) {
     const x = Math.floor(Math.random() * width);
     const y = Math.floor(Math.random() * height);
     const idx = y * width + x;
-    pixels[idx] = Math.random() > 0.7 ? PixelType.STAR : PixelType.DUST;
+    
+    // More varied ambient particles
+    const rand = Math.random();
+    if (rand > 0.85) {
+      pixels[idx] = PixelType.STAR;
+    } else if (rand > 0.7) {
+      pixels[idx] = PixelType.DUST;
+    } else if (rand > 0.65) {
+      pixels[idx] = PixelType.EMBER; // Subtle ember particles
+    }
+  }
+}
+
+function createExplosion(centerX: number, centerY: number, radius: number, intensity: number): void {
+  const particleCount = Math.floor(intensity * 80);
+  
+  for (let i = 0; i < particleCount; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = Math.random() * radius;
+    const x = Math.floor(centerX + Math.cos(angle) * dist);
+    const y = Math.floor(centerY + Math.sin(angle) * dist);
+    
+    if (x < 0 || x >= width || y < 0 || y >= height) continue;
+    const idx = y * width + x;
+    
+    // Create varied explosion particles
+    const rand = Math.random();
+    let particleType: PixelType;
+    
+    if (rand > 0.7) {
+      particleType = PixelType.EXPLOSION;
+    } else if (rand > 0.4) {
+      particleType = PixelType.FIRE;
+    } else if (rand > 0.2) {
+      particleType = PixelType.SPARK;
+    } else if (rand > 0.1) {
+      particleType = PixelType.PLASMA;
+    } else if (rand > 0.05) {
+      particleType = PixelType.LIGHTNING;
+    } else {
+      particleType = PixelType.DEBRIS;
+    }
+    
+    pixels[idx] = particleType;
+    // Set velocity for outward motion
+    const velAngle = angle;
+    const speed = 0.5 + Math.random() * 2;
+    pixelData[idx * 4] = Math.cos(velAngle) * speed; // vx
+    pixelData[idx * 4 + 1] = Math.sin(velAngle) * speed; // vy
+    pixelData[idx * 4 + 2] = 0; // reserved
+    pixelData[idx * 4 + 3] = 0; // lifetime
+  }
+}
+
+function createLightning(startX: number, startY: number, endX: number, endY: number): void {
+  // Create jagged lightning path
+  let x = startX;
+  let y = startY;
+  const dx = endX - startX;
+  const dy = endY - startY;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  const steps = Math.floor(dist / 3);
+  
+  for (let i = 0; i < steps; i++) {
+    const progress = i / steps;
+    const jitter = (Math.random() - 0.5) * 10;
+    x = Math.floor(startX + dx * progress + jitter);
+    y = Math.floor(startY + dy * progress + jitter);
+    
+    if (x < 0 || x >= width || y < 0 || y >= height) continue;
+    
+    const idx = y * width + x;
+    pixels[idx] = PixelType.LIGHTNING;
+    
+    // Add branching
+    if (Math.random() > 0.85) {
+      const branchAngle = Math.random() * Math.PI * 2;
+      const branchLen = 5 + Math.random() * 10;
+      for (let j = 0; j < branchLen; j++) {
+        const bx = Math.floor(x + Math.cos(branchAngle) * j);
+        const by = Math.floor(y + Math.sin(branchAngle) * j);
+        if (bx >= 0 && bx < width && by >= 0 && by < height) {
+          const bIdx = by * width + bx;
+          if (pixels[bIdx] === PixelType.EMPTY) {
+            pixels[bIdx] = PixelType.ELECTRIC;
+          }
+        }
+      }
+    }
   }
 }
 
 function updatePhysics(dt: number): void {
-  // Process from bottom to top for falling
+  // Process pending explosions
+  for (const exp of pendingExplosions) {
+    createExplosion(exp.x, exp.y, exp.radius, exp.intensity);
+  }
+  pendingExplosions = [];
+  
+  // Process from bottom to top for falling, top to bottom for rising
   for (let y = height - 2; y >= 0; y--) {
     const randomStart = Math.random() > 0.5 ? 0 : 1;
     const startX = randomStart === 0 ? 0 : width - 1;
@@ -59,7 +160,29 @@ function updatePhysics(dt: number): void {
       const props = PIXEL_PROPERTIES[pixelType as PixelType];
       if (!props) continue;
       
-      // Apply gravity
+      const dataIdx = idx * 4;
+      
+      // Apply velocity-based movement for explosive particles
+      const vx = pixelData[dataIdx];
+      const vy = pixelData[dataIdx + 1];
+      
+      if (Math.abs(vx) > 0.1 || Math.abs(vy) > 0.1) {
+        const newX = x + Math.round(vx);
+        const newY = y + Math.round(vy);
+        
+        if (newX >= 0 && newX < width && newY >= 0 && newY < height) {
+          const newIdx = newY * width + newX;
+          if (pixels[newIdx] === PixelType.EMPTY) {
+            swapPixels(idx, newIdx);
+            // Apply drag
+            pixelData[newIdx * 4] *= 0.95;
+            pixelData[newIdx * 4 + 1] *= 0.95;
+            continue;
+          }
+        }
+      }
+      
+      // Apply gravity (positive = falls, negative = rises)
       if (props.gravity > 0) {
         const belowIdx = (y + 1) * width + x;
         
@@ -72,10 +195,7 @@ function updatePhysics(dt: number): void {
             swapPixels(idx, diagIdx);
           }
         }
-      }
-      
-      // Rising particles (fire, gas)
-      if (props.gravity < 0) {
+      } else if (props.gravity < 0) {
         const aboveIdx = (y - 1) * width + x;
         if (y > 0 && canMove(pixelType, idx, aboveIdx)) {
           swapPixels(idx, aboveIdx);
@@ -89,7 +209,7 @@ function updatePhysics(dt: number): void {
       }
       
       // Spread (liquids, gases)
-      if (props.spread > 0 && Math.random() < props.spread * 0.3) {
+      if (props.spread > 0 && Math.random() < props.spread * 0.4) {
         const dir = Math.random() > 0.5 ? 1 : -1;
         const sideIdx = y * width + (x + dir);
         if (x + dir >= 0 && x + dir < width && pixels[sideIdx] === PixelType.EMPTY) {
@@ -97,18 +217,21 @@ function updatePhysics(dt: number): void {
         }
       }
       
-      // Lifetime decay
-      if (props.lifetime > 0) {
-        const dataIdx = idx * 4;
-        pixelData[dataIdx + 3] += dt * 1000; // Track elapsed time
-        if (pixelData[dataIdx + 3] >= props.lifetime) {
-          pixels[idx] = PixelType.EMPTY;
+      // Trail particles
+      if (props.trail && props.trailType !== null && Math.random() < 0.15) {
+        const trailOffset = Math.floor(Math.random() * 3) - 1;
+        const tx = x + trailOffset;
+        const ty = y + 1;
+        if (tx >= 0 && tx < width && ty >= 0 && ty < height) {
+          const trailIdx = ty * width + tx;
+          if (pixels[trailIdx] === PixelType.EMPTY) {
+            pixels[trailIdx] = props.trailType;
+          }
         }
       }
       
-      // Interactions
+      // Handle interactions
       if (props.interactions && Object.keys(props.interactions).length > 0) {
-        // Check neighbors for interactions
         const neighbors = [
           y > 0 ? (y - 1) * width + x : -1,
           y < height - 1 ? (y + 1) * width + x : -1,
@@ -125,6 +248,86 @@ function updatePhysics(dt: number): void {
           }
         }
       }
+      
+      // Emissive lighting - brighten nearby empty pixels
+      if (props.emissive && props.glowIntensity > 0) {
+        const glowRadius = Math.floor(props.glowIntensity * 2);
+        for (let gy = -glowRadius; gy <= glowRadius; gy++) {
+          for (let gx = -glowRadius; gx <= glowRadius; gx++) {
+            const nx = x + gx;
+            const ny = y + gy;
+            if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+              const nIdx = ny * width + nx;
+              if (pixels[nIdx] === PixelType.EMPTY && Math.random() > 0.7) {
+                // Subtle glow on empty cells
+                if (Math.random() > 0.95) {
+                  pixels[nIdx] = PixelType.ENERGY;
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      // Lifetime decay
+      if (props.lifetime > 0) {
+        pixelData[dataIdx + 3] += dt * 1000;
+        if (pixelData[dataIdx + 3] >= props.lifetime) {
+          // Death explosion
+          if (props.explodeOnDeath !== null && props.explodeCount > 0) {
+            for (let i = 0; i < props.explodeCount; i++) {
+              const angle = Math.random() * Math.PI * 2;
+              const dist = 1 + Math.random() * 2;
+              const dx = Math.floor(Math.cos(angle) * dist);
+              const dy = Math.floor(Math.sin(angle) * dist);
+              const nx = x + dx;
+              const ny = y + dy;
+              if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                const nIdx = ny * width + nx;
+                if (pixels[nIdx] === PixelType.EMPTY) {
+                  pixels[nIdx] = props.explodeOnDeath;
+                  // Give death particles some velocity
+                  pixelData[nIdx * 4] = dx * 0.5;
+                  pixelData[nIdx * 4 + 1] = dy * 0.5;
+                }
+              }
+            }
+          }
+          pixels[idx] = PixelType.EMPTY;
+        }
+      }
+    }
+  }
+  
+  // Randomly add ambient particles to keep things crowded
+  if (Math.random() < 0.05) {
+    const x = Math.floor(Math.random() * width);
+    const y = Math.floor(Math.random() * height);
+    const idx = y * width + x;
+    if (pixels[idx] === PixelType.EMPTY) {
+      const rand = Math.random();
+      if (rand > 0.7) {
+        pixels[idx] = PixelType.DUST;
+      } else if (rand > 0.4) {
+        pixels[idx] = PixelType.EMBER;
+      }
+    }
+  }
+  
+  // Occasionally create lightning between stars
+  if (Math.random() < 0.001) {
+    // Find two random stars
+    const stars: Array<{x: number, y: number}> = [];
+    for (let i = 0; i < pixels.length && stars.length < 2; i++) {
+      if (pixels[i] === PixelType.STAR || pixels[i] === PixelType.PLANET) {
+        stars.push({
+          x: i % width,
+          y: Math.floor(i / width)
+        });
+      }
+    }
+    if (stars.length >= 2) {
+      createLightning(stars[0].x, stars[0].y, stars[1].x, stars[1].y);
     }
   }
 }
@@ -132,7 +335,7 @@ function updatePhysics(dt: number): void {
 function canMove(fromType: PixelType, fromIdx: number, toIdx: number): boolean {
   if (toIdx < 0 || toIdx >= pixels.length) return false;
   const toType = pixels[toIdx];
-  return toType === PixelType.EMPTY || toType === PixelType.DUST;
+  return toType === PixelType.EMPTY || toType === PixelType.DUST || toType === PixelType.GAS;
 }
 
 function swapPixels(idx1: number, idx2: number): void {
@@ -152,7 +355,10 @@ function setPixel(x: number, y: number, newType: PixelType): void {
   if (x < 0 || x >= width || y < 0 || y >= height) return;
   const idx = Math.floor(y) * width + Math.floor(x);
   pixels[idx] = newType;
-  // Reset lifetime counter
+  // Reset lifetime counter and velocity
+  pixelData[idx * 4] = 0;
+  pixelData[idx * 4 + 1] = 0;
+  pixelData[idx * 4 + 2] = 0;
   pixelData[idx * 4 + 3] = 0;
 }
 
@@ -177,6 +383,9 @@ function resize(w: number, h: number): void {
       pixels[newIdx] = oldPixels[oldIdx];
     }
   }
+  
+  // Add new ambient particles for expanded area
+  addAmbientParticles();
 }
 
 // Worker message handler
@@ -201,6 +410,15 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
         
       case 'resize':
         resize(msg.width, msg.height);
+        break;
+        
+      case 'explosion':
+        pendingExplosions.push({
+          x: msg.x,
+          y: msg.y,
+          radius: msg.radius,
+          intensity: msg.intensity
+        });
         break;
     }
   } catch (error) {

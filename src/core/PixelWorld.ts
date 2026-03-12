@@ -1,6 +1,6 @@
 /**
  * Pixel World - Contains the pixel physics simulation
- * Uses WebWorker for off-main-thread physics computation
+ * Noita-inspired visual effects with glow and particles
  */
 
 import { PixelType, PIXEL_PROPERTIES } from './PixelTypes';
@@ -13,14 +13,17 @@ export class PixelWorld {
   private transactionEntities: any[] = [];
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
+  private glowCanvas: HTMLCanvasElement;
+  private glowCtx: CanvasRenderingContext2D;
   private imageData: ImageData;
   private worker: Worker | null = null;
   private pendingPixels: Array<{ x: number; y: number; pixelType: PixelType }> = [];
+  private pendingExplosions: Array<{ x: number; y: number; radius: number; intensity: number }> = [];
   private workerReady: boolean = false;
   private frameCount: number = 0;
   private lastFpsUpdate: number = 0;
   private fps: number = 0;
-  private onUpdateComplete: (() => void) | null = null;
+  private time: number = 0;
 
   constructor(width: number, height: number) {
     this.width = Math.floor(width);
@@ -36,13 +39,20 @@ export class PixelWorld {
     this.ctx = ctx;
     this.imageData = this.ctx.createImageData(this.width, this.height);
     
+    // Glow canvas for bloom effect
+    this.glowCanvas = document.createElement('canvas');
+    this.glowCanvas.width = this.width;
+    this.glowCanvas.height = this.height;
+    const glowCtx = this.glowCanvas.getContext('2d');
+    if (!glowCtx) throw new Error('Could not get glow 2D context');
+    this.glowCtx = glowCtx;
+    
     this.initializeWorker();
     this.initialize();
   }
 
   private initializeWorker(): void {
     try {
-      // Create worker from the compiled worker script
       this.worker = new Worker(
         new URL('./PhysicsWorker.ts', import.meta.url),
         { type: 'module' }
@@ -53,17 +63,17 @@ export class PixelWorld {
         switch (msg.type) {
           case 'ready':
             this.workerReady = true;
-            // Process any pending pixel sets
             for (const p of this.pendingPixels) {
               this.worker?.postMessage({ type: 'setPixel', x: p.x, y: p.y, pixelType: p.pixelType });
             }
             this.pendingPixels = [];
+            for (const exp of this.pendingExplosions) {
+              this.worker?.postMessage({ type: 'explosion', ...exp });
+            }
+            this.pendingExplosions = [];
             break;
           case 'pixels':
             this.pixels = msg.data;
-            if (this.onUpdateComplete) {
-              this.onUpdateComplete();
-            }
             break;
           case 'error':
             console.error('Physics worker error:', msg.message);
@@ -85,10 +95,10 @@ export class PixelWorld {
   }
 
   private addAmbientParticles(): void {
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 500; i++) {
       const x = Math.floor(Math.random() * this.width);
       const y = Math.floor(Math.random() * this.height);
-      const type = Math.random() > 0.7 ? PixelType.STAR : PixelType.DUST;
+      const type = Math.random() > 0.85 ? PixelType.STAR : Math.random() > 0.7 ? PixelType.DUST : PixelType.EMBER;
       this.setPixel(x, y, type);
     }
   }
@@ -100,6 +110,8 @@ export class PixelWorld {
     this.canvas.width = this.width;
     this.canvas.height = this.height;
     this.imageData = this.ctx.createImageData(this.width, this.height);
+    this.glowCanvas.width = this.width;
+    this.glowCanvas.height = this.height;
     
     if (this.worker && this.workerReady) {
       this.worker.postMessage({ type: 'resize', width: this.width, height: this.height });
@@ -121,7 +133,17 @@ export class PixelWorld {
     this.transactionEntities.push(entity);
   }
 
+  createExplosion(x: number, y: number, radius: number = 20, intensity: number = 1): void {
+    if (this.worker && this.workerReady) {
+      this.worker.postMessage({ type: 'explosion', x, y, radius, intensity });
+    } else {
+      this.pendingExplosions.push({ x, y, radius, intensity });
+    }
+  }
+
   update(dt: number): void {
+    this.time += dt;
+    
     // Update FPS counter
     this.frameCount++;
     const now = performance.now();
@@ -134,12 +156,9 @@ export class PixelWorld {
     // Use worker for physics if available
     if (this.worker && this.workerReady) {
       this.worker.postMessage({ type: 'update', dt });
-    } else {
-      // Fallback to main thread physics
-      this.updatePhysicsMainThread(dt);
     }
     
-    // Update entities (always on main thread for rendering)
+    // Update entities
     for (const entity of this.blockEntities) {
       entity.update(dt);
     }
@@ -149,15 +168,11 @@ export class PixelWorld {
   }
 
   private updatePhysicsMainThread(dt: number): void {
+    // Simplified main thread physics fallback
     const gravity = 50 * dt;
     
     for (let y = this.height - 2; y >= 0; y--) {
-      const randomStart = Math.random() > 0.5 ? 0 : 1;
-      const startX = randomStart === 0 ? 0 : this.width - 1;
-      const endX = randomStart === 0 ? this.width : -1;
-      const step = randomStart === 0 ? 1 : -1;
-      
-      for (let x = startX; x !== endX; x += step) {
+      for (let x = 0; x < this.width; x++) {
         const idx = y * this.width + x;
         const pixelType = this.pixels[idx];
         
@@ -170,12 +185,6 @@ export class PixelWorld {
           const belowIdx = (y + 1) * this.width + x;
           if (y < this.height - 1 && this.canMove(pixelType, belowIdx)) {
             this.swapPixels(idx, belowIdx);
-          } else if (y < this.height - 1) {
-            const dir = Math.random() > 0.5 ? 1 : -1;
-            const diagIdx = (y + 1) * this.width + (x + dir);
-            if (x + dir >= 0 && x + dir < this.width && this.canMove(pixelType, diagIdx)) {
-              this.swapPixels(idx, diagIdx);
-            }
           }
         }
       }
@@ -201,6 +210,8 @@ export class PixelWorld {
     
     if (this.worker && this.workerReady) {
       this.worker.postMessage({ type: 'setPixel', x: Math.floor(x), y: Math.floor(y), pixelType: type });
+    } else {
+      this.pendingPixels.push({ x: Math.floor(x), y: Math.floor(y), pixelType: type });
     }
   }
 
@@ -219,28 +230,72 @@ export class PixelWorld {
   }
 
   render(ctx: CanvasRenderingContext2D): void {
-    // Update image data from pixels
     const data = this.imageData.data;
+    const flickerTime = this.time * 10;
+    
+    // Clear to dark background
+    for (let i = 0; i < data.length; i += 4) {
+      data[i] = 10;
+      data[i + 1] = 10;
+      data[i + 2] = 15;
+      data[i + 3] = 255;
+    }
+    
+    // Render glow layer first (for bloom effect)
+    this.glowCtx.clearRect(0, 0, this.width, this.height);
+    
+    // Update image data from pixels with enhanced glow
     for (let i = 0; i < this.pixels.length; i++) {
       const pixelType = this.pixels[i];
       const props = PIXEL_PROPERTIES[pixelType as PixelType];
-      const offset = i * 4;
       
-      if (props) {
-        data[offset] = props.color[0];
-        data[offset + 1] = props.color[1];
-        data[offset + 2] = props.color[2];
-        data[offset + 3] = props.color[3];
-      } else {
-        // Empty space - dark background
-        data[offset] = 10;
-        data[offset + 1] = 10;
-        data[offset + 2] = 15;
-        data[offset + 3] = 255;
+      if (!props) continue;
+      
+      const offset = i * 4;
+      let r = props.color[0];
+      let g = props.color[1];
+      let b = props.color[2];
+      let a = props.color[3];
+      
+      // Apply flicker effect
+      if (props.flickerRate > 0) {
+        const flicker = 0.7 + 0.3 * Math.sin(flickerTime + i * 0.1);
+        const variance = props.flickerRate * (1 - flicker);
+        r = Math.min(255, Math.floor(r * (1 - variance) + r * variance * Math.random()));
+        g = Math.min(255, Math.floor(g * (1 - variance) + g * variance * Math.random()));
+        b = Math.min(255, Math.floor(b * (1 - variance) + b * variance * Math.random()));
       }
+      
+      // Enhance glow for emissive particles
+      if (props.glow && props.glowIntensity > 0) {
+        const glowBoost = props.glowIntensity * 0.5;
+        r = Math.min(255, Math.floor(r + 255 * glowBoost));
+        g = Math.min(255, Math.floor(g + 255 * glowBoost));
+        b = Math.min(255, Math.floor(b + 255 * glowBoost));
+        
+        // Draw glow on glow canvas
+        const x = i % this.width;
+        const y = Math.floor(i / this.width);
+        const glowRadius = Math.floor(3 + props.glowIntensity * 5);
+        const gradient = this.glowCtx.createRadialGradient(x, y, 0, x, y, glowRadius);
+        gradient.addColorStop(0, `rgba(${props.color[0]}, ${props.color[1]}, ${props.color[2]}, ${0.6 * props.glowIntensity})`);
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        this.glowCtx.fillStyle = gradient;
+        this.glowCtx.fillRect(x - glowRadius, y - glowRadius, glowRadius * 2, glowRadius * 2);
+      }
+      
+      data[offset] = r;
+      data[offset + 1] = g;
+      data[offset + 2] = b;
+      data[offset + 3] = a;
     }
     
     this.ctx.putImageData(this.imageData, 0, 0);
+    
+    // Composite glow layer
+    this.ctx.globalCompositeOperation = 'lighter';
+    this.ctx.drawImage(this.glowCanvas, 0, 0);
+    this.ctx.globalCompositeOperation = 'source-over';
     
     // Scale to match target canvas
     const rect = ctx.canvas.getBoundingClientRect();

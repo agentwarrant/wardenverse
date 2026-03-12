@@ -47,16 +47,57 @@ When developing, always use `npm run dev` - it automatically:
 
 ## Visual Style (Noita-Inspired)
 
-- Every blockchain entity is represented as pixel art:
-  - **Blocks** → Planets/stars that grow with transaction volume
-  - **Transactions** → Comets/shooting stars traveling between blocks
-  - **Token transfers** → Particle streams with color based on token type
-  - **Smart contract calls** → Interstellar explosions
-- Physics simulation: particles interact realistically
-  - Fire spreads, liquids flow, gases dissipate
-  - Creates emergent visual patterns
-- Fog of war: unexplored blockchain areas are hidden
-- Atmospheric lighting: blocks with high activity glow brighter
+### Particle Types
+
+The simulation includes 19 distinct pixel types, each with unique physics properties:
+
+| Type | Behavior | Visual |
+|------|----------|--------|
+| **STAR** | Static, glowing | Bright golden points |
+| **DUST** | Falls slowly, spreads | Subtle gray particles |
+| **PLANET** | Static, large glow | Blue glowing bodies |
+| **COMET** | Travels, leaves trail | Blue shooting stars |
+| **EXPLOSION** | Rises rapidly, spreads | Bright orange bursts |
+| **FIRE** | Rises, spreads to gas | Orange flames |
+| **GAS** | Rises, dissipates | Purple vapor |
+| **LIQUID** | Falls, spreads horizontally | Blue fluid |
+| **ENERGY** | Short-lived, bright | Purple sparkles |
+| **SPARK** | Falls slowly, ignites gas | White-yellow dots |
+| **PLASMA** | Rises, spawns lightning | Purple-white energy |
+| **ELECTRIC** | Very short-lived | Cyan flash |
+| **LIGHTNING** | Creates branches | Bright white-blue |
+| **EMBER** | Rises slowly, smoky | Orange-red particles |
+| **SMOKE** | Rises, dissipates | Gray wisps |
+| **DEBRIS** | Falls, spawns dust | Brown particles |
+| **TOKEN** | Glows intensely, explodes | Bright green with sparkle |
+| **VOID** | Absorbs nearby particles | Dark purple-black |
+
+### Visual Features
+
+- **Blocks** → Growing planets/stars with orbital rings and particle emissions
+  - Size scales with transaction count
+  - Activity level affects glow intensity
+  - Birth explosions with plasma effects
+  
+- **Transactions** → Comets with enhanced trails
+  - **Token transfers** → Bright green with intense sparkle, larger trails
+  - **Contract calls** → Pink with plasma/lightning effects
+  - **Regular transfers** → Blue with electric glow
+  
+- **Particle Physics**
+  - Fire spreads to gas, creating explosions
+  - Lightning branches between points
+  - Particles interact realistically (falling sand style)
+  
+- **Interactive Effects**
+  - Left-click: Create explosion
+  - Right-click: Lightning bolt
+  - Drag: Particle spray
+  
+- **Ambient Activity**
+  - Continuous particle flow from edges
+  - Stars twinkle and pulse
+  - Background stays crowded and dynamic
 
 ---
 

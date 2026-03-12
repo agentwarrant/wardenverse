@@ -1,5 +1,6 @@
 /**
  * Shared pixel types - used by both main thread and worker
+ * Noita-inspired pixel physics with explosive particle effects
  */
 
 export enum PixelType {
@@ -13,15 +14,33 @@ export enum PixelType {
   GAS = 7,
   LIQUID = 8,
   ENERGY = 9,
+  // New pixel types for Noita-style effects
+  SPARK = 10,
+  PLASMA = 11,
+  ELECTRIC = 12,
+  LIGHTNING = 13,
+  EMBER = 14,
+  SMOKE = 15,
+  DEBRIS = 16,
+  TOKEN = 17,
+  VOID = 18,
 }
 
 export interface PixelProperties {
   color: [number, number, number, number]; // RGBA
-  gravity: number; // 0-1, how much gravity affects (negative = rises)
-  spread: number; // 0-1, how much it spreads horizontally
+  gravity: number; // -1 to1, negative = rises
+  spread: number; //0-1, horizontal spread
   lifetime: number; // milliseconds, 0 = infinite
   glow: boolean;
+  glowIntensity: number; //0-1, extra brightness
+  particleSize: number; // visual size multiplier
+  trail: boolean; // leaves trail particles
+  trailType: PixelType | null; // type of trail particle
+  explodeOnDeath: PixelType | null; // what to spawn when lifetime ends
+  explodeCount: number; // how many particles to spawn
   interactions: Partial<Record<PixelType, PixelType>>;
+  emissive: boolean; // emits light to neighbors
+  flickerRate: number; //0-1, how much color flickers
 }
 
 export const PIXEL_PROPERTIES: Record<PixelType, PixelProperties | null> = {
@@ -33,16 +52,32 @@ export const PIXEL_PROPERTIES: Record<PixelType, PixelProperties | null> = {
     spread: 0,
     lifetime: 0,
     glow: true,
+    glowIntensity: 0.8,
+    particleSize: 1.5,
+    trail: false,
+    trailType: null,
+    explodeOnDeath: null,
+    explodeCount: 0,
     interactions: {},
+    emissive: true,
+    flickerRate: 0.3,
   },
   
   [PixelType.DUST]: {
     color: [60, 60, 80, 150],
     gravity: 0.1,
     spread: 0.3,
-    lifetime: 5000,
+    lifetime: 8000,
     glow: false,
+    glowIntensity: 0,
+    particleSize: 1,
+    trail: false,
+    trailType: null,
+    explodeOnDeath: null,
+    explodeCount: 0,
     interactions: {},
+    emissive: false,
+    flickerRate: 0,
   },
   
   [PixelType.PLANET]: {
@@ -51,7 +86,15 @@ export const PIXEL_PROPERTIES: Record<PixelType, PixelProperties | null> = {
     spread: 0,
     lifetime: 0,
     glow: true,
+    glowIntensity: 0.6,
+    particleSize: 4,
+    trail: false,
+    trailType: null,
+    explodeOnDeath: null,
+    explodeCount: 0,
     interactions: {},
+    emissive: true,
+    flickerRate: 0,
   },
   
   [PixelType.COMET]: {
@@ -60,54 +103,269 @@ export const PIXEL_PROPERTIES: Record<PixelType, PixelProperties | null> = {
     spread: 0,
     lifetime: 3000,
     glow: true,
+    glowIntensity: 0.9,
+    particleSize: 2,
+    trail: true,
+    trailType: PixelType.SPARK,
+    explodeOnDeath: PixelType.SPARK,
+    explodeCount: 5,
     interactions: {},
+    emissive: true,
+    flickerRate: 0.2,
   },
   
   [PixelType.EXPLOSION]: {
     color: [255, 100, 50, 255],
-    gravity: -0.5, // Rises
+    gravity: -0.8,
     spread: 1,
-    lifetime: 500,
+    lifetime: 300,
     glow: true,
-    interactions: {},
+    glowIntensity: 1,
+    particleSize: 2.5,
+    trail: true,
+    trailType: PixelType.FIRE,
+    explodeOnDeath: PixelType.SPARK,
+    explodeCount: 4,
+    interactions: {
+      [PixelType.DUST]: PixelType.FIRE,
+      [PixelType.GAS]: PixelType.PLASMA,
+    },
+    emissive: true,
+    flickerRate: 0.5,
   },
   
   [PixelType.FIRE]: {
     color: [255, 150, 50, 255],
-    gravity: -0.3,
-    spread: 0.5,
-    lifetime: 1000,
+    gravity: -0.4,
+    spread: 0.6,
+    lifetime: 800,
     glow: true,
+    glowIntensity: 0.8,
+    particleSize: 1.5,
+    trail: true,
+    trailType: PixelType.SMOKE,
+    explodeOnDeath: PixelType.EMBER,
+    explodeCount: 2,
     interactions: {
       [PixelType.DUST]: PixelType.FIRE,
       [PixelType.GAS]: PixelType.EXPLOSION,
     },
+    emissive: true,
+    flickerRate: 0.7,
   },
   
   [PixelType.GAS]: {
-    color: [150, 100, 200, 100],
-    gravity: -0.2,
-    spread: 0.8,
-    lifetime: 2000,
+    color: [150, 100, 200, 80],
+    gravity: -0.3,
+    spread: 0.9,
+    lifetime: 1500,
     glow: false,
+    glowIntensity: 0,
+    particleSize: 1.2,
+    trail: false,
+    trailType: null,
+    explodeOnDeath: null,
+    explodeCount: 0,
     interactions: {},
+    emissive: false,
+    flickerRate: 0.1,
   },
   
   [PixelType.LIQUID]: {
     color: [50, 100, 200, 200],
     gravity: 0.8,
-    spread: 0.6,
+    spread: 0.7,
     lifetime: 0,
     glow: false,
+    glowIntensity: 0,
+    particleSize: 1,
+    trail: false,
+    trailType: null,
+    explodeOnDeath: null,
+    explodeCount: 0,
     interactions: {},
+    emissive: false,
+    flickerRate: 0,
   },
   
   [PixelType.ENERGY]: {
     color: [167, 139, 250, 255],
     gravity: 0,
     spread: 0,
-    lifetime: 200,
+    lifetime: 150,
     glow: true,
+    glowIntensity: 1,
+    particleSize: 1.8,
+    trail: true,
+    trailType: PixelType.ELECTRIC,
+    explodeOnDeath: PixelType.SPARK,
+    explodeCount: 3,
     interactions: {},
+    emissive: true,
+    flickerRate: 0.8,
+  },
+  
+  // New pixel types for Noita-style effects
+  [PixelType.SPARK]: {
+    color: [255, 255, 200, 255],
+    gravity: 0.2,
+    spread: 0.4,
+    lifetime: 400,
+    glow: true,
+    glowIntensity: 0.9,
+    particleSize: 0.8,
+    trail: true,
+    trailType: PixelType.EMBER,
+    explodeOnDeath: null,
+    explodeCount: 0,
+    interactions: {
+      [PixelType.GAS]: PixelType.FIRE,
+    },
+    emissive: true,
+    flickerRate: 0.9,
+  },
+  
+  [PixelType.PLASMA]: {
+    color: [200, 150, 255, 255],
+    gravity: -0.2,
+    spread: 0.5,
+    lifetime: 600,
+    glow: true,
+    glowIntensity: 1,
+    particleSize: 2,
+    trail: true,
+    trailType: PixelType.ELECTRIC,
+    explodeOnDeath: PixelType.LIGHTNING,
+    explodeCount: 2,
+    interactions: {
+      [PixelType.DUST]: PixelType.ENERGY,
+    },
+    emissive: true,
+    flickerRate: 0.6,
+  },
+  
+  [PixelType.ELECTRIC]: {
+    color: [150, 200, 255, 255],
+    gravity: 0,
+    spread: 0,
+    lifetime: 100,
+    glow: true,
+    glowIntensity: 1,
+    particleSize: 1.2,
+    trail: false,
+    trailType: null,
+    explodeOnDeath: null,
+    explodeCount: 0,
+    interactions: {},
+    emissive: true,
+    flickerRate: 1,
+  },
+  
+  [PixelType.LIGHTNING]: {
+    color: [220, 240, 255, 255],
+    gravity: 0,
+    spread: 0,
+    lifetime: 50,
+    glow: true,
+    glowIntensity: 1.5,
+    particleSize: 2.5,
+    trail: true,
+    trailType: PixelType.ELECTRIC,
+    explodeOnDeath: null,
+    explodeCount: 0,
+    interactions: {},
+    emissive: true,
+    flickerRate: 1,
+  },
+  
+  [PixelType.EMBER]: {
+    color: [255, 100, 50, 200],
+    gravity: -0.1,
+    spread: 0.2,
+    lifetime: 1200,
+    glow: true,
+    glowIntensity: 0.6,
+    particleSize: 0.7,
+    trail: true,
+    trailType: PixelType.SMOKE,
+    explodeOnDeath: null,
+    explodeCount: 0,
+    interactions: {
+      [PixelType.GAS]: PixelType.FIRE,
+    },
+    emissive: true,
+    flickerRate: 0.4,
+  },
+  
+  [PixelType.SMOKE]: {
+    color: [80, 80, 90, 100],
+    gravity: -0.15,
+    spread: 0.5,
+    lifetime: 3000,
+    glow: false,
+    glowIntensity: 0,
+    particleSize: 1.5,
+    trail: false,
+    trailType: null,
+    explodeOnDeath: null,
+    explodeCount: 0,
+    interactions: {},
+    emissive: false,
+    flickerRate: 0,
+  },
+  
+  [PixelType.DEBRIS]: {
+    color: [120, 100, 80, 255],
+    gravity: 0.5,
+    spread: 0.1,
+    lifetime: 2000,
+    glow: false,
+    glowIntensity: 0,
+    particleSize: 1.3,
+    trail: true,
+    trailType: PixelType.DUST,
+    explodeOnDeath: PixelType.DUST,
+    explodeCount: 3,
+    interactions: {},
+    emissive: false,
+    flickerRate: 0,
+  },
+  
+  [PixelType.TOKEN]: {
+    color: [52, 211, 153, 255],
+    gravity: 0,
+    spread: 0,
+    lifetime: 2000,
+    glow: true,
+    glowIntensity: 1.2,
+    particleSize: 2.2,
+    trail: true,
+    trailType: PixelType.SPARK,
+    explodeOnDeath: PixelType.PLASMA,
+    explodeCount: 8,
+    interactions: {},
+    emissive: true,
+    flickerRate: 0.3,
+  },
+  
+  [PixelType.VOID]: {
+    color: [30, 20, 50, 255],
+    gravity: 0,
+    spread: 0,
+    lifetime: 0,
+    glow: false,
+    glowIntensity: 0,
+    particleSize: 1,
+    trail: false,
+    trailType: null,
+    explodeOnDeath: null,
+    explodeCount: 0,
+    interactions: {
+      [PixelType.STAR]: PixelType.VOID,
+      [PixelType.DUST]: PixelType.VOID,
+      [PixelType.SPARK]: PixelType.VOID,
+    },
+    emissive: false,
+    flickerRate: 0,
   },
 };

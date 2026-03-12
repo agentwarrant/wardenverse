@@ -1,5 +1,5 @@
 /**
- * Core rendering engine with pixel physics simulation
+ * Core rendering engine with Noita-style pixel physics simulation
  * Uses WebWorker for off-main-thread physics computation
  */
 
@@ -39,15 +39,21 @@ export class Engine {
   private mouseY: number = 0;
   private fpsElement: HTMLElement | null;
   private resolutionElement: HTMLElement | null;
+  private blockCountElement: HTMLElement | null;
+  private txCountElement: HTMLElement | null;
+  private time: number = 0;
+  private ambientParticleTimer: number = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Could not get 2D context');
     this.ctx = ctx;
-    this.world = new PixelWorld(800, 600); // Logical pixel resolution
+    this.world = new PixelWorld(800, 600);
     this.fpsElement = document.getElementById('fps');
     this.resolutionElement = document.getElementById('resolution');
+    this.blockCountElement = document.getElementById('block-count');
+    this.txCountElement = document.getElementById('tx-count');
     
     this.setupCanvas();
     this.setupEventListeners();
@@ -74,19 +80,102 @@ export class Engine {
       this.mouseY = e.clientY - rect.top;
     });
     
-    // Click to add particles
+    // Click to add particles - varied explosion types
     this.canvas.addEventListener('click', (e) => {
       const rect = this.canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       
-      // Add a small explosion of particles
-      for (let i = 0; i < 20; i++) {
-        const px = x + (Math.random() - 0.5) * 30;
-        const py = y + (Math.random() - 0.5) * 30;
-        const types = [PixelType.FIRE, PixelType.GAS, PixelType.EXPLOSION, PixelType.ENERGY];
+      // Create a big explosion at click location
+      this.world.createExplosion(x, y, 40, 2);
+      
+      // Add varied particles
+      for (let i = 0; i < 50; i++) {
+        const px = x + (Math.random() - 0.5) * 60;
+        const py = y + (Math.random() - 0.5) * 60;
+        const types = [
+          PixelType.FIRE, PixelType.GAS, PixelType.EXPLOSION, 
+          PixelType.ENERGY, PixelType.PLASMA, PixelType.SPARK,
+          PixelType.DEBRIS, PixelType.EMBER
+        ];
         const type = types[Math.floor(Math.random() * types.length)];
         this.world.setPixel(px, py, type);
+      }
+    });
+    
+    // Right-click for lightning
+    this.canvas.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      const rect = this.canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      // Create lightning effect
+      for (let i = 0; i < 20; i++) {
+        const lx = x + (Math.random() - 0.5) * 100;
+        const ly = y + (Math.random() - 0.5) * 100;
+        this.world.setPixel(lx, ly, PixelType.LIGHTNING);
+      }
+      
+      // Add electric particles
+      for (let i = 0; i < 30; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.random() * 50;
+        const ex = Math.floor(x + Math.cos(angle) * dist);
+        const ey = Math.floor(y + Math.sin(angle) * dist);
+        this.world.setPixel(ex, ey, PixelType.ELECTRIC);
+      }
+    });
+    
+    // Mouse drag for continuous particle spray
+    let isDragging = false;
+    let lastDragX = 0;
+    let lastDragY = 0;
+    
+    this.canvas.addEventListener('mousedown', (e) => {
+      if (e.button === 0) {
+        isDragging = true;
+        lastDragX = e.clientX - this.canvas.getBoundingClientRect().left;
+        lastDragY = e.clientY - this.canvas.getBoundingClientRect().top;
+      }
+    });
+    
+    this.canvas.addEventListener('mouseup', () => {
+      isDragging = false;
+    });
+    
+    this.canvas.addEventListener('mouseleave', () => {
+      isDragging = false;
+    });
+    
+    this.canvas.addEventListener('mousemove', (e) => {
+      if (isDragging) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        // Spray particles along the drag path
+        const dx = x - lastDragX;
+        const dy = y - lastDragY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const steps = Math.max(1, Math.floor(dist / 3));
+        
+        for (let i = 0; i < steps; i++) {
+          const t = i / steps;
+          const px = lastDragX + dx * t + (Math.random() - 0.5) * 10;
+          const py = lastDragY + dy * t + (Math.random() - 0.5) * 10;
+          
+          // Cycle through particle types for variety
+          const types = [
+            PixelType.FIRE, PixelType.SPARK, PixelType.PLASMA,
+            PixelType.ENERGY, PixelType.GAS, PixelType.EMBER
+          ];
+          const type = types[Math.floor((this.time * 10 + i) % types.length)];
+          this.world.setPixel(px, py, type);
+        }
+        
+        lastDragX = x;
+        lastDragY = y;
       }
     });
   }
@@ -96,7 +185,7 @@ export class Engine {
     this.blocks.set(block.number, visual);
     this.world.addBlockEntity(visual);
     
-// Remove old blocks if we have too many
+    // Remove old blocks if we have too many
     if (this.blocks.size > 50) {
       const oldest = Math.min(...this.blocks.keys());
       const oldVisual = this.blocks.get(oldest);
@@ -105,12 +194,23 @@ export class Engine {
       }
       this.blocks.delete(oldest);
     }
+    
+    // Update block count display
+    if (this.blockCountElement) {
+      this.blockCountElement.textContent = this.blocks.size.toString();
+    }
   }
 
   addTransaction(tx: Transaction): void {
     const visual = new TransactionVisual(tx, this.world);
     this.pendingTransactions.push(visual);
     this.world.addTransactionEntity(visual);
+    
+    // Update transaction count
+    if (this.txCountElement) {
+      const current = parseInt(this.txCountElement.textContent || '0');
+      this.txCountElement.textContent = (current + 1).toString();
+    }
   }
 
   start(): void {
@@ -130,6 +230,7 @@ export class Engine {
     const now = performance.now();
     const dt = (now - this.lastTime) / 1000;
     this.lastTime = now;
+    this.time += dt;
 
     this.update(dt);
     this.render();
@@ -154,6 +255,13 @@ export class Engine {
     // Remove completed transactions
     this.pendingTransactions = this.pendingTransactions.filter(tx => !tx.isComplete());
     
+    // Add ambient particles periodically for crowded feel
+    this.ambientParticleTimer += dt;
+    if (this.ambientParticleTimer > 0.5) {
+      this.ambientParticleTimer = 0;
+      this.addAmbientParticles();
+    }
+    
     // Update FPS display
     if (this.fpsElement) {
       this.fpsElement.textContent = this.world.getFps().toString();
@@ -164,9 +272,51 @@ export class Engine {
     }
   }
 
+  private addAmbientParticles(): void {
+    const w = this.world['width'];
+    const h = this.world['height'];
+    
+    // Add ambient particles at edges for continuous activity
+    for (let i = 0; i < 10; i++) {
+      const edge = Math.floor(Math.random() * 4);
+      let x, y;
+      
+      switch (edge) {
+        case 0: // Top
+          x = Math.random() * w;
+          y = 0;
+          break;
+        case 1: // Right
+          x = w;
+          y = Math.random() * h;
+          break;
+        case 2: // Bottom
+          x = Math.random() * w;
+          y = h;
+          break;
+        default: // Left
+          x = 0;
+          y = Math.random() * h;
+      }
+      
+      const types = [PixelType.DUST, PixelType.EMBER, PixelType.SPARK];
+      const type = types[Math.floor(Math.random() * types.length)];
+      this.world.setPixel(x, y, type);
+    }
+  }
+
   private render(): void {
     const rect = this.canvas.getBoundingClientRect();
-    this.ctx.fillStyle = '#0a0a0f';
+    
+    // Dark space background with subtle gradient
+    const bgGradient = this.ctx.createRadialGradient(
+      rect.width / 2, rect.height / 2, 0,
+      rect.width / 2, rect.height / 2, Math.max(rect.width, rect.height)
+    );
+    bgGradient.addColorStop(0, '#0f0f18');
+    bgGradient.addColorStop(0.5, '#0a0a12');
+    bgGradient.addColorStop(1, '#050508');
+    this.ctx.fillStyle = bgGradient;
     this.ctx.fillRect(0, 0, rect.width, rect.height);
     
     // Render pixel world
@@ -189,11 +339,21 @@ export class Engine {
   private renderMouseGlow(): void {
     const gradient = this.ctx.createRadialGradient(
       this.mouseX, this.mouseY, 0,
-      this.mouseX, this.mouseY, 100
+      this.mouseX, this.mouseY, 150
     );
-    gradient.addColorStop(0, 'rgba(96, 165, 250, 0.1)');
+    gradient.addColorStop(0, 'rgba(96, 165, 250, 0.15)');
+    gradient.addColorStop(0.5, 'rgba(96, 165, 250, 0.05)');
     gradient.addColorStop(1, 'transparent');
     this.ctx.fillStyle = gradient;
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    
+    // Add subtle particle at mouse position occasionally
+    if (Math.random() < 0.1) {
+      this.world.setPixel(
+        this.mouseX + (Math.random() - 0.5) * 100,
+        this.mouseY + (Math.random() - 0.5) * 100,
+        PixelType.ENERGY
+      );
+    }
   }
 }
