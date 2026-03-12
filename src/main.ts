@@ -16,6 +16,8 @@ async function main() {
   const loadingEl = document.getElementById('loading');
   const legendEl = document.getElementById('legend');
   const blockHeightEl = document.getElementById('block-height');
+  const blockCountEl = document.getElementById('block-count');
+  const totalTxsEl = document.getElementById('total-txs');
   const txCountEl = document.getElementById('tx-count');
   const tpsEl = document.getElementById('tps');
 
@@ -50,6 +52,8 @@ async function main() {
   
   // Track transaction count for TPS calculation
   let txCount = 0;
+  let totalTxCount = 0;
+  let blockCount = 0;
   
   // Handle legend info popup clicks
   document.addEventListener('showLegendInfo', ((e: CustomEvent) => {
@@ -107,9 +111,13 @@ async function main() {
     
     // Reset stats
     if (blockHeightEl) blockHeightEl.textContent = '--';
-    if (txCountEl) txCountEl.textContent = '0';
+    if (blockCountEl) blockCountEl.textContent = '0';
+    if (totalTxsEl) totalTxsEl.textContent = '0';
+    if (txCountEl) txCountEl.textContent = '--';
     if (tpsEl) tpsEl.textContent = '--';
     txCount = 0;
+    totalTxCount = 0;
+    blockCount = 0;
     
     // Clear the tx hash scroll
     txHashScroll.clear();
@@ -138,8 +146,12 @@ async function main() {
     const latestBlock = await dataSource.getLatestBlock();
     if (latestBlock) {
       engine.addBlock(latestBlock);
+      blockCount = 1;
       if (blockHeightEl) blockHeightEl.textContent = latestBlock.number.toLocaleString();
+      if (blockCountEl) blockCountEl.textContent = '1';
       if (txCountEl) txCountEl.textContent = latestBlock.transactions.length.toString();
+      totalTxCount = latestBlock.transactions.length;
+      if (totalTxsEl) totalTxsEl.textContent = totalTxCount.toLocaleString();
     }
     
     // Hide loading
@@ -355,10 +367,16 @@ async function main() {
     // Start watching for new blocks
     dataSource.onBlock((block) => {
       engine.addBlock(block);
+      blockCount++;
       
       // Update stats
       if (blockHeightEl) blockHeightEl.textContent = block.number.toLocaleString();
+      if (blockCountEl) blockCountEl.textContent = blockCount.toLocaleString();
       if (txCountEl) txCountEl.textContent = block.transactions.length.toString();
+      
+      // Update total transactions
+      totalTxCount += block.transactions.length;
+      if (totalTxsEl) totalTxsEl.textContent = totalTxCount.toLocaleString();
       
       // Play block sound and big event sound for blocks with many transactions
       if (musicEnabled) {
@@ -385,8 +403,12 @@ async function main() {
     const latestBlock = await dataSource.getLatestBlock();
     if (latestBlock) {
       engine.addBlock(latestBlock);
+      blockCount = 1;
       if (blockHeightEl) blockHeightEl.textContent = latestBlock.number.toLocaleString();
+      if (blockCountEl) blockCountEl.textContent = '1';
       if (txCountEl) txCountEl.textContent = latestBlock.transactions.length.toString();
+      totalTxCount = latestBlock.transactions.length;
+      if (totalTxsEl) totalTxsEl.textContent = totalTxCount.toLocaleString();
     }
 
     // Hide loading, show legend
