@@ -503,8 +503,19 @@ export class InfoPopup {
     const icon = TRANSACTION_ICONS[tx.type] || TRANSACTION_ICONS.transfer;
 
     const valueWei = BigInt(tx.value);
-    const valueEth = Number(valueWei) / 1e18;
-    const valueDisplay = valueEth > 0 ? `${valueEth.toFixed(6)} WARD` : '0 WARD';
+    const valueWARD = Number(valueWei) / 1e18;
+
+    let valueDisplay: string;
+    if (valueWei === 0n) {
+      valueDisplay = '0 WARD';
+    } else if (valueWARD >= 0.000001) {
+      // Show WARD for amounts >= 1 uWARD (microWARD)
+      valueDisplay = `${valueWARD.toFixed(6)} WARD`;
+    } else {
+      // Show uWARD for small amounts to avoid "0.000000 WARD"
+      const valueuWARD = Number(valueWei) / 1e12; // Convert weiWARD to microWARD
+      valueDisplay = `${valueuWARD.toFixed(2)} uWARD`;
+    }
 
     const gasPriceGwei = tx.gasPrice ? (Number(BigInt(tx.gasPrice)) / 1e9).toFixed(2) : '0';
 
