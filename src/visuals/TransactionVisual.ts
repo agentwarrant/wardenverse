@@ -281,4 +281,25 @@ export class TransactionVisual {
   isComplete(): boolean {
     return this.life <= 0;
   }
+
+  /**
+   * Get the transaction hash.
+   */
+  getHash(): string {
+    return this.tx.hash;
+  }
+
+  /**
+   * Get the current screen position.
+   */
+  getPosition(): { x: number; y: number } {
+    return { x: this.x, y: this.y };
+  }
+
+  /**
+   * Get the underlying transaction data.
+   */
+  getTransaction(): Transaction {
+    return this.tx;
+  }
 }

@@ -70,6 +70,8 @@ export class BlockVisual {
   private lastGridX: number = -1;
   private lastGridY: number = -1;
   private lastGridSize: number = 0;
+  private lifespan: number = 5 * 60 * 1000; // 5 minutes in milliseconds
+  private age: number = 0;
 
   constructor(block: Block, world: PixelWorld, screenWidth: number, screenHeight: number) {
     this.block = block;
@@ -123,6 +125,20 @@ export class BlockVisual {
    */
   isDestroyed(): boolean {
     return this.isDestroying && this.destroyProgress >= 1;
+  }
+
+  /**
+   * Check if the block has exceeded its lifespan and should start melting.
+   */
+  isExpired(): boolean {
+    return this.age >= this.lifespan && !this.isDestroying;
+  }
+
+  /**
+   * Get the remaining lifespan in milliseconds.
+   */
+  getRemainingLifespan(): number {
+    return Math.max(0, this.lifespan - this.age);
   }
 
   /**
@@ -208,6 +224,14 @@ export class BlockVisual {
   }
 
   update(dt: number): void {
+    // Track age
+    this.age += dt * 1000;
+    
+    // Check if expired and start melting
+    if (this.isExpired()) {
+      this.destroy();
+    }
+    
     // Handle destruction/melting
     if (this.isDestroying) {
       this.destroyProgress += dt * 1000 / this.destroyDuration;
@@ -353,5 +377,37 @@ export class BlockVisual {
 
   getBlockNumber(): number {
     return this.block.number;
+  }
+
+  /**
+   * Get the current screen position of the block center.
+   */
+  getPosition(): { x: number; y: number } {
+    return { x: this.x, y: this.y };
+  }
+
+  /**
+   * Get the current visual radius for click detection.
+   */
+  getRadius(): number {
+    return this.size;
+  }
+
+  /**
+   * Get the underlying block data.
+   */
+  getBlock(): Block {
+    return this.block;
+  }
+
+  /**
+   * Check if a screen point is within the block's clickable area.
+   */
+  containsPoint(px: number, py: number): boolean {
+    const dx = px - this.x;
+    const dy = py - this.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    // Make click area slightly larger than visual size for easier clicking
+    return distance <= this.size * 1.5;
   }
 }

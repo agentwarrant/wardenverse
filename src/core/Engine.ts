@@ -8,7 +8,7 @@ import { PixelWorld } from './PixelWorld';
 import { PixelType } from './PixelTypes';
 import { BlockVisual } from '../visuals/BlockVisual';
 import { TransactionVisual } from '../visuals/TransactionVisual';
-import { PIXEL_SIZE } from './Config';
+import { InfoPopup, BlockInfo, TransactionInfo } from '../ui/InfoPopup';
 
 export interface Block {
   number: number;
@@ -17,6 +17,7 @@ export interface Block {
   transactions: string[];
   gasUsed: string;
   gasLimit: string;
+  parentHash?: string;
 }
 
 export interface Transaction {
@@ -39,8 +40,6 @@ export class Engine {
   private pendingTransactions: TransactionVisual[] = [];
   private mouseX: number = 0;
   private mouseY: number = 0;
-  private fpsElement: HTMLElement | null;
-  private resolutionElement: HTMLElement | null;
   private blockCountElement: HTMLElement | null;
   private txCountElement: HTMLElement | null;
   private time: number = 0;
@@ -48,6 +47,8 @@ export class Engine {
   private screenWidth: number = 800;
   private screenHeight: number = 600;
   private initialized: boolean = false;
+  private infoPopup: InfoPopup;
+  private onBlockClick: ((block: Block) => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -56,12 +57,11 @@ export class Engine {
     this.ctx = ctx;
     // Will be properly sized in setupCanvas()
     this.world = new PixelWorld(800, 600);
-    this.fpsElement = document.getElementById('fps');
-    this.resolutionElement = document.getElementById('resolution');
     this.blockCountElement = document.getElementById('block-count');
     this.txCountElement = document.getElementById('tx-count');
     
     this.setupCanvas();
+    this.infoPopup = new InfoPopup();
     this.setupEventListeners();
     this.initialized = true;
   }
@@ -71,9 +71,15 @@ export class Engine {
       const dpr = window.devicePixelRatio || 1;
       const rect = this.canvas.getBoundingClientRect();
       
-      // Ensure we have valid dimensions
-      const width = Math.max(100, rect.width);
-      const height = Math.max(100, rect.height);
+      // Ensure we have valid dimensions - use window size as fallback
+      let width = Math.max(100, rect.width);
+      let height = Math.max(100, rect.height);
+      
+      // Fallback to window dimensions if canvas rect is too small
+      if (width < 100 || height < 100) {
+        width = Math.max(100, window.innerWidth);
+        height = Math.max(100, window.innerHeight - 60); // Account for header
+      }
       
       // Store actual screen dimensions
       this.screenWidth = width;
@@ -99,14 +105,21 @@ export class Engine {
     // Force layout reflow before getting dimensions
     // This ensures the flexbox has calculated the container size
     void this.canvas.offsetHeight;
+    void this.canvas.clientWidth;
+    void this.canvas.clientHeight;
     
-    // Initial resize
+    // Initial resize - try immediately
     resize();
     
     // Also trigger resize after next frame to catch any late layout changes
     requestAnimationFrame(() => {
+      void this.canvas.offsetHeight; // Force reflow
       resize();
     });
+    
+    // And again after a short delay for fonts/images
+    setTimeout(resize, 100);
+    setTimeout(resize, 500); // Extra attempt for slow layouts
     
     // Handle window resize
     window.addEventListener('resize', resize);
@@ -118,6 +131,8 @@ export class Engine {
     } else {
       window.addEventListener('load', () => {
         resize();
+        // And once more after load
+        setTimeout(resize, 200);
       });
     }
   }
@@ -139,12 +154,54 @@ export class Engine {
       this.mouseY = e.clientY - rect.top;
     });
     
-    // Click to add particles
+    // Click to check for block hits or add particles
     this.canvas.addEventListener('click', (e) => {
       const rect = this.canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
+
+      // Check if click is on a block
+      for (const block of this.blocks.values()) {
+        if (block.containsPoint(x, y)) {
+          const blockData = block.getBlock();
+          this.infoPopup.showBlock({
+            number: blockData.number,
+            hash: blockData.hash,
+            timestamp: blockData.timestamp,
+            transactions: blockData.transactions,
+            gasUsed: blockData.gasUsed,
+            gasLimit: blockData.gasLimit,
+            parentHash: blockData.parentHash || ''
+          });
+          if (this.onBlockClick) {
+            this.onBlockClick(blockData);
+          }
+          return; // Don't create explosion if we hit a block
+        }
+      }
+
+      // Check if click is on a transaction (smaller hit area)
+      for (const tx of this.pendingTransactions) {
+        const pos = tx.getPosition();
+        const dx = x - pos.x;
+        const dy = y - pos.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance <= 20) { // 20px hit radius for transactions
+          const txData = tx.getTransaction();
+          this.infoPopup.showTransaction({
+            hash: txData.hash,
+            blockNumber: txData.blockNumber,
+            from: txData.from,
+            to: txData.to,
+            value: txData.value,
+            gasPrice: txData.gasPrice,
+            type: txData.type
+          });
+          return;
+        }
+      }
       
+      // No hit - create explosion as before
       this.world.createExplosion(x, y, 40, 2);
       
       for (let i = 0; i < 30; i++) {
@@ -272,6 +329,28 @@ export class Engine {
   stop(): void {
     this.running = false;
     this.world.destroy();
+    this.infoPopup.destroy();
+  }
+
+  /**
+   * Get the info popup instance.
+   */
+  getInfoPopup(): InfoPopup {
+    return this.infoPopup;
+  }
+
+  /**
+   * Set a callback for when a block is clicked.
+   */
+  setOnBlockClick(callback: (block: Block) => void): void {
+    this.onBlockClick = callback;
+  }
+
+  /**
+   * Get all active blocks (for external access).
+   */
+  getBlocks(): Map<number, BlockVisual> {
+    return this.blocks;
   }
 
   private loop = (): void => {
@@ -295,6 +374,7 @@ export class Engine {
     const destroyedBlocks: number[] = [];
     for (const [number, block] of this.blocks) {
       block.update(dt);
+      // Check if block is fully destroyed (melted)
       if (block.isDestroyed()) {
         destroyedBlocks.push(number);
       }
@@ -323,14 +403,6 @@ export class Engine {
       this.ambientParticleTimer = 0;
       this.addAmbientParticles();
     }
-    
-    if (this.fpsElement) {
-      this.fpsElement.textContent = this.world.getFps().toString();
-    }
-    if (this.resolutionElement) {
-      const res = this.world.getResolution();
-      this.resolutionElement.textContent = `${res.width}x${res.height} (${PIXEL_SIZE}x)`;
-    }
   }
 
   private addAmbientParticles(): void {
@@ -353,21 +425,24 @@ export class Engine {
   }
 
   private render(): void {
-    const rect = this.canvas.getBoundingClientRect();
+    // Use stored dimensions instead of getBoundingClientRect() to avoid
+    // stale values during resize that cause white pixels at old positions
+    const width = this.screenWidth;
+    const height = this.screenHeight;
     
     // Dark space background
     const bgGradient = this.ctx.createRadialGradient(
-      rect.width / 2, rect.height / 2, 0,
-      rect.width / 2, rect.height / 2, Math.max(rect.width, rect.height)
+      width / 2, height / 2, 0,
+      width / 2, height / 2, Math.max(width, height)
     );
     bgGradient.addColorStop(0, '#0f0f18');
     bgGradient.addColorStop(0.5, '#0a0a12');
     bgGradient.addColorStop(1, '#050508');
     this.ctx.fillStyle = bgGradient;
-    this.ctx.fillRect(0, 0, rect.width, rect.height);
+    this.ctx.fillRect(0, 0, width, height);
     
     // Render pixel world (handles PIXEL_SIZE scaling)
-    this.world.render(this.ctx);
+    this.world.render(this.ctx, width, height);
     
     // Render entities with pixel-art style (quantized to PIXEL_SIZE)
     this.ctx.save();
@@ -397,6 +472,7 @@ export class Engine {
     gradient.addColorStop(0.5, 'rgba(96, 165, 250, 0.03)');
     gradient.addColorStop(1, 'transparent');
     this.ctx.fillStyle = gradient;
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    // Use stored dimensions instead of canvas.width (which is DPR-scaled)
+    this.ctx.fillRect(0, 0, this.screenWidth, this.screenHeight);
   }
 }

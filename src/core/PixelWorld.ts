@@ -288,7 +288,7 @@ export class PixelWorld {
     return { width: this.screenWidth, height: this.screenHeight };
   }
 
-  render(ctx: CanvasRenderingContext2D): void {
+  render(ctx: CanvasRenderingContext2D, screenWidth?: number, screenHeight?: number): void {
     const data = this.imageData.data;
     const flickerTime = this.time * 10;
     
@@ -357,9 +357,11 @@ export class PixelWorld {
     this.ctx.globalCompositeOperation = 'source-over';
     
     // Scale up to screen size using nearest-neighbor for pixel art look
-    const screenRect = ctx.canvas.getBoundingClientRect();
+    // Use passed dimensions to avoid stale getBoundingClientRect() values during resize
+    const targetWidth = screenWidth ?? this.screenWidth;
+    const targetHeight = screenHeight ?? this.screenHeight;
     ctx.imageSmoothingEnabled = false; // Crisp pixel scaling
-    ctx.drawImage(this.canvas, 0, 0, screenRect.width, screenRect.height);
+    ctx.drawImage(this.canvas, 0, 0, targetWidth, targetHeight);
   }
 
   destroy(): void {
