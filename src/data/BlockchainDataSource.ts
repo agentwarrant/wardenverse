@@ -1,10 +1,11 @@
 /**
- * Blockchain Data Source - Connects to Warden EVM RPC
+ * Blockchain Data Source - Connects to EVM-compatible chains
  * Fetches blocks and transactions for visualization
+ * Supports chain switching between Warden, Base, and other EVM chains
  */
 
 import { JsonRpcProvider, Block as EthersBlock, TransactionResponse } from 'ethers';
-import { PROOF_OF_INFERENCE_ADDRESS } from '../core/Config';
+import { Chain, CHAINS, DEFAULT_CHAIN, getChainById } from '../core/Chains';
 
 export interface Block {
   number: number;
@@ -30,23 +31,76 @@ export interface Transaction {
 
 type BlockCallback = (block: Block) => void;
 type TransactionCallback = (tx: Transaction) => void;
+type ChainChangeCallback = (chain: Chain) => void;
 
 export class BlockchainDataSource {
   private provider: JsonRpcProvider;
   private connected: boolean = false;
+  private currentChain: Chain;
   private blockCallbacks: BlockCallback[] = [];
   private txCallbacks: TransactionCallback[] = [];
+  private chainChangeCallbacks: ChainChangeCallback[] = [];
   private pollingInterval: NodeJS.Timeout | null = null;
   private lastBlockNumber: number = 0;
 
-  constructor(rpcUrl: string) {
-    this.provider = new JsonRpcProvider(rpcUrl);
+  constructor(chainOrUrl: Chain | string) {
+    // Support both Chain object and string URL for backwards compatibility
+    if (typeof chainOrUrl === 'string') {
+      // Try to find matching chain, or use Warden as default
+      this.currentChain = CHAINS.find(c => c.rpcUrl === chainOrUrl) || getChainById(DEFAULT_CHAIN)!;
+    } else {
+      this.currentChain = chainOrUrl;
+    }
+    this.provider = new JsonRpcProvider(this.currentChain.rpcUrl);
+  }
+
+  getChain(): Chain {
+    return this.currentChain;
+  }
+
+  async switchChain(chainId: string): Promise<boolean> {
+    const newChain = getChainById(chainId);
+    if (!newChain) {
+      console.error(`Unknown chain: ${chainId}`);
+      return false;
+    }
+
+    if (newChain.id === this.currentChain.id) {
+      console.log(`Already on chain: ${newChain.name}`);
+      return true;
+    }
+
+    console.log(`Switching from ${this.currentChain.name} to ${newChain.name}...`);
+    
+    // Disconnect from current chain
+    this.disconnect();
+    
+    // Update chain and provider
+    this.currentChain = newChain;
+    this.provider = new JsonRpcProvider(newChain.rpcUrl);
+    this.lastBlockNumber = 0;
+    
+    // Reconnect
+    const success = await this.connect();
+    
+    if (success) {
+      // Notify chain change callbacks
+      for (const callback of this.chainChangeCallbacks) {
+        callback(newChain);
+      }
+    }
+    
+    return success;
+  }
+
+  onChainChange(callback: ChainChangeCallback): void {
+    this.chainChangeCallbacks.push(callback);
   }
 
   async connect(): Promise<boolean> {
     try {
       const network = await this.provider.getNetwork();
-      console.log('Connected to Warden chain:', network);
+      console.log(`Connected to ${this.currentChain.name} chain:`, network);
       this.connected = true;
       
       // Start polling for new blocks
@@ -54,13 +108,16 @@ export class BlockchainDataSource {
       
       return true;
     } catch (error) {
-      console.error('Failed to connect to Warden chain:', error);
+      console.error(`Failed to connect to ${this.currentChain.name} chain:`, error);
       return false;
     }
   }
 
   private startPolling(): void {
-    // Poll every 2 seconds for new blocks
+    // Adjust polling interval based on chain's block time
+    // Default to 2 seconds, but use chain's block time if available
+    const pollInterval = this.currentChain.blockTime ? Math.max(1000, this.currentChain.blockTime * 500) : 2000;
+    
     this.pollingInterval = setInterval(async () => {
       try {
         const blockNumber = await this.provider.getBlockNumber();
@@ -78,7 +135,7 @@ export class BlockchainDataSource {
       } catch (error) {
         console.error('Error polling for blocks:', error);
       }
-    }, 2000);
+    }, pollInterval);
   }
 
   private async processBlock(block: EthersBlock): Promise<void> {
@@ -120,15 +177,18 @@ export class BlockchainDataSource {
     // Determine transaction type
     let type: 'transfer' | 'contract' | 'token' | 'inference' = 'transfer';
     
-    // Check if this is a native coin transfer (WARD)
+    // Get the proof of inference address for current chain (if any)
+    const proofOfInferenceAddress = this.currentChain.contracts?.proofOfInference?.toLowerCase();
+    
+    // Check if this is a native coin transfer
     const hasValue = tx.value > 0n;
     
     if (tx.to === null) {
       type = 'contract'; // Contract creation
-    } else if (tx.to.toLowerCase() === PROOF_OF_INFERENCE_ADDRESS) {
-      type = 'inference'; // Proof Of Inference contract call
+    } else if (proofOfInferenceAddress && tx.to.toLowerCase() === proofOfInferenceAddress) {
+      type = 'inference'; // Proof Of Inference contract call (chain-specific)
     } else if (hasValue) {
-      // Native coin transfer (WARD) - show as token with floating coins
+      // Native coin transfer - show as token with floating coins
       type = 'token';
     } else if (tx.data && tx.data.length > 2) {
       // Contract call without value (likely ERC-20 approve or similar)
@@ -207,5 +267,9 @@ export class BlockchainDataSource {
       this.pollingInterval = null;
     }
     this.connected = false;
+  }
+
+  isConnected(): boolean {
+    return this.connected;
   }
 }

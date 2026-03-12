@@ -370,4 +370,16 @@ export class PixelWorld {
       this.worker = null;
     }
   }
+
+  /**
+   * Clear all pixels and entities (for chain switching).
+   */
+  clear(): void {
+    // Reset all pixels to empty
+    this.pixels.fill(PixelType.EMPTY);
+    
+    // Clear block and transaction entities
+    this.blockEntities = [];
+    this.transactionEntities = [];
+  }
 }

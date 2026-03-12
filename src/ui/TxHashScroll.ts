@@ -138,4 +138,12 @@ export class TxHashScroll {
       this.container.parentNode.removeChild(this.container);
     }
   }
+  
+  /**
+   * Clear all transaction entries.
+   */
+  clear(): void {
+    this.entries = [];
+    this.render();
+  }
 }

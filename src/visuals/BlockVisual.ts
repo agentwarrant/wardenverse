@@ -32,21 +32,21 @@ const BLOCK_PATTERNS = {
   ]
 };
 
-// Color palettes for block types
+// Color palettes for block types (blue theme)
 const BLOCK_COLORS: { [pattern: string]: { [key: number]: [number, number, number] | null } } = {
   star: {
     0: null, // transparent
-    1: [251, 191, 36], // outer glow
-    2: [251, 217, 96], // mid
-    3: [254, 243, 199], // core
-    4: [255, 255, 255], // center
+    1: [59, 130, 246], // outer glow (blue-500)
+    2: [96, 165, 250], // mid (blue-400)
+    3: [147, 197, 253], // core (blue-300)
+    4: [219, 234, 254], // center (blue-100)
   },
   planet: {
     0: null,
-    1: [180, 83, 9], // dark edge
-    2: [245, 158, 11], // mid
-    3: [251, 191, 36], // bright
-    4: [254, 243, 199], // highlight
+    1: [30, 64, 175], // dark edge (blue-800)
+    2: [59, 130, 246], // mid (blue-500)
+    3: [96, 165, 250], // bright (blue-400)
+    4: [147, 197, 253], // highlight (blue-300)
   }
 };
 
@@ -328,12 +328,12 @@ export class BlockVisual {
     const px = Math.floor(this.x / PIXEL_SIZE) * PIXEL_SIZE + PIXEL_SIZE / 2;
     const py = Math.floor(this.y / PIXEL_SIZE) * PIXEL_SIZE + PIXEL_SIZE / 2;
     
-    // Draw glow (still smooth for atmosphere)
+    // Draw glow (still smooth for atmosphere) - blue theme
     const glowSize = this.size * 2;
     const glowAlpha = 0.15 + this.activityLevel * 0.15;
     const glow = ctx.createRadialGradient(px, py, 0, px, py, glowSize);
-    glow.addColorStop(0, `rgba(251, 191, 36, ${glowAlpha})`);
-    glow.addColorStop(0.5, `rgba(251, 191, 36, ${glowAlpha * 0.5})`);
+    glow.addColorStop(0, `rgba(59, 130, 246, ${glowAlpha})`);
+    glow.addColorStop(0.5, `rgba(59, 130, 246, ${glowAlpha * 0.5})`);
     glow.addColorStop(1, 'transparent');
     ctx.fillStyle = glow;
     ctx.beginPath();

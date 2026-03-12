@@ -353,6 +353,18 @@ export class Engine {
     return this.blocks;
   }
 
+  /**
+   * Clear all blocks and transactions (for chain switching).
+   */
+  clear(): void {
+    this.blocks.clear();
+    this.pendingTransactions = [];
+    this.world.clear();
+    if (this.blockCountElement) {
+      this.blockCountElement.textContent = '0';
+    }
+  }
+
   private loop = (): void => {
     if (!this.running) return;
 
