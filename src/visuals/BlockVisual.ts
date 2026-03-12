@@ -1,6 +1,7 @@
 /**
  * BlockVisual - Pixel art representation of a blockchain block
  * Renders as a chunky pixel-art star/planet
+ * Colors are determined by the current chain
  */
 
 import type { Engine, Block } from '../core/Engine';
@@ -32,23 +33,66 @@ const BLOCK_PATTERNS = {
   ]
 };
 
-// Color palettes for block types (blue theme)
-const BLOCK_COLORS: { [pattern: string]: { [key: number]: [number, number, number] | null } } = {
-  star: {
-    0: null, // transparent
-    1: [59, 130, 246], // outer glow (blue-500)
-    2: [96, 165, 250], // mid (blue-400)
-    3: [147, 197, 253], // core (blue-300)
-    4: [219, 234, 254], // center (blue-100)
-  },
-  planet: {
-    0: null,
-    1: [30, 64, 175], // dark edge (blue-800)
-    2: [59, 130, 246], // mid (blue-500)
-    3: [96, 165, 250], // bright (blue-400)
-    4: [147, 197, 253], // highlight (blue-300)
-  }
+// Default chain colors (will be overridden by chain-specific colors)
+let currentChainColors = {
+  primary: [251, 191, 36] as [number, number, number], // Yellow/gold for Warden
+  glow: [251, 191, 36] as [number, number, number]
 };
+
+/**
+ * Set the current chain colors for all blocks
+ */
+export function setChainColors(colors: { primary: [number, number, number]; glow: [number, number, number] }): void {
+  currentChainColors = colors;
+}
+
+/**
+ * Generate color palette from primary color
+ */
+function generateColorPalette(primary: [number, number, number]): { [pattern: string]: { [key: number]: [number, number, number] | null } } {
+  // Generate lighter variants
+  const lighter = [
+    Math.min(255, primary[0] + 30),
+    Math.min(255, primary[1] + 30),
+    Math.min(255, primary[2] + 30)
+  ] as [number, number, number];
+  
+  const light = [
+    Math.min(255, primary[0] + 60),
+    Math.min(255, primary[1] + 60),
+    Math.min(255, primary[2] + 60)
+  ] as [number, number, number];
+  
+  const lighterStill = [
+    Math.min(255, primary[0] + 100),
+    Math.min(255, primary[1] + 100),
+    Math.min(255, primary[2] + 100)
+  ] as [number, number, number];
+  
+  // Generate darker variants
+  const darker = [
+    Math.max(0, primary[0] - 80),
+    Math.max(0, primary[1] - 80),
+    Math.max(0, primary[2] - 80)
+  ] as [number, number, number];
+  
+  return {
+    star: {
+      0: null, // transparent
+      1: primary, // outer glow
+      2: lighter, // mid
+      3: light, // core
+      4: lighterStill, // center
+    },
+    planet: {
+      0: null,
+      1: darker, // dark edge
+      2: primary, // mid
+      3: lighter, // bright
+      4: light, // highlight
+    }
+  };
+}
 
 export class BlockVisual {
   private block: Block;
@@ -91,7 +135,10 @@ export class BlockVisual {
     
     // Choose pattern based on activity
     this.pattern = this.activityLevel > 0.5 ? BLOCK_PATTERNS.star : BLOCK_PATTERNS.planet;
-    this.colors = this.activityLevel > 0.5 ? BLOCK_COLORS.star : BLOCK_COLORS.planet;
+    
+    // Generate colors from current chain colors
+    const palette = generateColorPalette(currentChainColors.primary);
+    this.colors = this.activityLevel > 0.5 ? palette.star : palette.planet;
     
     this.createBirthExplosion();
   }
@@ -328,12 +375,13 @@ export class BlockVisual {
     const px = Math.floor(this.x / PIXEL_SIZE) * PIXEL_SIZE + PIXEL_SIZE / 2;
     const py = Math.floor(this.y / PIXEL_SIZE) * PIXEL_SIZE + PIXEL_SIZE / 2;
     
-    // Draw glow (still smooth for atmosphere) - blue theme
+    // Draw glow (still smooth for atmosphere) - uses current chain colors
     const glowSize = this.size * 2;
     const glowAlpha = 0.15 + this.activityLevel * 0.15;
     const glow = ctx.createRadialGradient(px, py, 0, px, py, glowSize);
-    glow.addColorStop(0, `rgba(59, 130, 246, ${glowAlpha})`);
-    glow.addColorStop(0.5, `rgba(59, 130, 246, ${glowAlpha * 0.5})`);
+    const glowColor = currentChainColors.glow;
+    glow.addColorStop(0, `rgba(${glowColor[0]}, ${glowColor[1]}, ${glowColor[2]}, ${glowAlpha})`);
+    glow.addColorStop(0.5, `rgba(${glowColor[0]}, ${glowColor[1]}, ${glowColor[2]}, ${glowAlpha * 0.5})`);
     glow.addColorStop(1, 'transparent');
     ctx.fillStyle = glow;
     ctx.beginPath();

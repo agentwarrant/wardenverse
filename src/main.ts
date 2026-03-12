@@ -1,7 +1,6 @@
 /**
  * Wardenverse - Visual Block Explorer
  * Entry point for the application
- * Supports multiple EVM chains (Warden, Base)
  */
 
 import { Engine } from './core/Engine';
@@ -10,6 +9,7 @@ import { TransactionType } from './data/BlockchainDataSource';
 import { MusicSystem } from './core/MusicSystem';
 import { TxHashScroll } from './ui/TxHashScroll';
 import { CHAINS, DEFAULT_CHAIN, getChainById, Chain } from './core/Chains';
+import { setChainColors } from './visuals/BlockVisual';
 
 async function main() {
   const canvas = document.getElementById('main-canvas') as HTMLCanvasElement;
@@ -24,8 +24,12 @@ async function main() {
     return;
   }
 
-  // Initialize blockchain data source with default chain
+  // Initialize blockchain data source with default chain (Warden)
   const defaultChain = getChainById(DEFAULT_CHAIN)!;
+  
+  // Set block colors for the current chain
+  setChainColors(defaultChain.colors);
+  
   const dataSource = new BlockchainDataSource(defaultChain);
   let currentChain = defaultChain;
   
@@ -124,10 +128,10 @@ async function main() {
     
     currentChain = newChain;
     
-    // Update chain button text
-    const chainBtn = document.getElementById('chain-btn');
-    if (chainBtn) {
-      chainBtn.textContent = newChain.name;
+    // Update chain label text
+    const chainLabel = document.getElementById('chain-label');
+    if (chainLabel) {
+      chainLabel.textContent = newChain.name;
     }
     
     // Get initial block from new chain
@@ -154,107 +158,26 @@ async function main() {
     console.log(`Switched to ${newChain.name}`);
   };
   
-  // Add chain switcher to header (before music button)
+  // Add chain label to header (before music button)
+  // Note: Chain switcher hidden for now - only Warden is available
   const header = document.getElementById('header');
   if (header) {
-    // Create chain switcher container
-    const chainContainer = document.createElement('div');
-    chainContainer.id = 'chain-switcher';
-    chainContainer.style.cssText = `
-      position: relative;
-      margin-right: 10px;
-    `;
-    
-    // Chain button
-    const chainBtn = document.createElement('button');
-    chainBtn.id = 'chain-btn';
-    chainBtn.textContent = currentChain.name;
-    chainBtn.style.cssText = `
+    // Create chain label (static since we only have Warden)
+    const chainLabel = document.createElement('div');
+    chainLabel.id = 'chain-label';
+    chainLabel.style.cssText = `
       background: rgba(30, 30, 45, 0.8);
-      border: 1px solid rgba(100, 100, 150, 0.3);
-      color: #e0e0e0;
+      border: 1px solid rgba(251, 191, 36, 0.3);
+      color: #fbbf24;
       padding: 6px 14px;
       border-radius: 8px;
-      cursor: pointer;
       font-size: 12px;
       font-family: inherit;
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      gap: 6px;
+      font-weight: 500;
+      margin-right: 10px;
     `;
-    chainBtn.innerHTML = `<span>${currentChain.name}</span><span style="font-size: 8px;">▼</span>`;
-    
-    // Dropdown menu
-    const chainDropdown = document.createElement('div');
-    chainDropdown.id = 'chain-dropdown';
-    chainDropdown.style.cssText = `
-      position: absolute;
-      top: 100%;
-      left: 0;
-      margin-top: 4px;
-      background: rgba(20, 20, 30, 0.95);
-      border: 1px solid rgba(100, 100, 150, 0.3);
-      border-radius: 8px;
-      overflow: hidden;
-      display: none;
-      z-index: 1000;
-      backdrop-filter: blur(10px);
-    `;
-    
-    // Add chain options
-    CHAINS.forEach(chain => {
-      const option = document.createElement('button');
-      option.style.cssText = `
-        display: block;
-        width: 100%;
-        padding: 8px 14px;
-        background: transparent;
-        border: none;
-        color: #e0e0e0;
-        text-align: left;
-        cursor: pointer;
-        font-size: 12px;
-        font-family: inherit;
-        transition: background 0.2s ease;
-        white-space: nowrap;
-      `;
-      option.textContent = chain.name;
-      option.onmouseover = () => {
-        option.style.background = 'rgba(59, 130, 246, 0.2)';
-      };
-      option.onmouseout = () => {
-        option.style.background = 'transparent';
-      };
-      option.onclick = () => {
-        switchChain(chain.id);
-        chainDropdown.style.display = 'none';
-      };
-      chainDropdown.appendChild(option);
-    });
-    
-    // Toggle dropdown on button click
-    chainBtn.onclick = (e) => {
-      e.stopPropagation();
-      const isVisible = chainDropdown.style.display === 'block';
-      chainDropdown.style.display = isVisible ? 'none' : 'block';
-    };
-    
-    // Close dropdown when clicking outside
-    document.addEventListener('click', () => {
-      chainDropdown.style.display = 'none';
-    });
-    
-    chainBtn.onmouseover = () => {
-      chainBtn.style.background = 'rgba(50, 50, 70, 0.9)';
-    };
-    chainBtn.onmouseout = () => {
-      chainBtn.style.background = 'rgba(30, 30, 45, 0.8)';
-    };
-    
-    chainContainer.appendChild(chainBtn);
-    chainContainer.appendChild(chainDropdown);
-    header.appendChild(chainContainer);
+    chainLabel.textContent = currentChain.name;
+    header.appendChild(chainLabel);
     
     // Create a container for the music button and animation
     const musicContainer = document.createElement('div');

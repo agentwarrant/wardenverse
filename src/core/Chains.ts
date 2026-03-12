@@ -19,6 +19,12 @@ export interface Chain {
   contracts?: {
     proofOfInference?: string;
   };
+  // Block colors for this chain
+  colors: {
+    primary: [number, number, number];
+    secondary: [number, number, number];
+    glow: [number, number, number];
+  };
 }
 
 export const CHAINS: Chain[] = [
@@ -35,21 +41,15 @@ export const CHAINS: Chain[] = [
     blockTime: 6, // ~6 seconds
     contracts: {
       proofOfInference: '0x510b5Df4612380c6564320d7DbbfdBe72AC0d529'
-    }
-  },
-  {
-    id: 'base',
-    name: 'Base',
-    rpcUrl: 'https://mainnet.base.org',
-    chainId: 8453,
-    nativeCurrency: {
-      name: 'Ethereum',
-      symbol: 'ETH',
-      decimals: 18
     },
-    explorerUrl: 'https://basescan.org',
-    blockTime: 2 // ~2 seconds
+    colors: {
+      primary: [251, 191, 36], // Yellow/gold for Warden
+      secondary: [245, 158, 11],
+      glow: [251, 191, 36]
+    }
   }
+  // Note: Base removed - transaction volume too different for current visualization
+  // To re-add, include colors property with blue theme
 ];
 
 export const DEFAULT_CHAIN = 'warden';
