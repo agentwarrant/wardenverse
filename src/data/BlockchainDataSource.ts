@@ -162,9 +162,13 @@ export class BlockchainDataSource {
       try {
         const tx = await this.provider.getTransaction(txHash);
         if (tx) {
-          const processedTx = await this.processTransaction(tx);
-          for (const callback of this.txCallbacks) {
-            callback(processedTx);
+          // Process transaction - may return multiple visualizations
+          const processedTxs = await this.processTransaction(tx);
+          // Emit each visualization type
+          for (const processedTx of processedTxs) {
+            for (const callback of this.txCallbacks) {
+              callback(processedTx);
+            }
           }
         }
       } catch (error) {
@@ -173,50 +177,77 @@ export class BlockchainDataSource {
     }
   }
 
-  private async processTransaction(tx: TransactionResponse): Promise<Transaction> {
-    // Determine transaction type
-    let type: 'transfer' | 'contract' | 'token' | 'inference' = 'transfer';
+  private async processTransaction(tx: TransactionResponse): Promise<Transaction[]> {
+    // Goal: Maximum visual activity - emit multiple comets per transaction
+    // Every transaction gets a base comet, PLUS additional comets for special types
     
     // Get the proof of inference address for current chain (if any)
     const proofOfInferenceAddress = this.currentChain.contracts?.proofOfInference?.toLowerCase();
     
     // Check if this is a native coin transfer
     const hasValue = tx.value > 0n;
+    const hasData = tx.data && tx.data.length > 2;
     
     // ERC-20 transfer function selector: 0xa9059cbb (transfer(address,uint256))
     // ERC-20 transferFrom selector: 0x23b872dd (transferFrom(address,address,uint256))
     const ERC20_TRANSFER_SELECTOR = '0xa9059cbb';
     const ERC20_TRANSFER_FROM_SELECTOR = '0x23b872dd';
     
-    if (tx.to === null) {
-      type = 'contract'; // Contract creation
-    } else if (proofOfInferenceAddress && tx.to.toLowerCase() === proofOfInferenceAddress) {
-      type = 'inference'; // Proof Of Inference contract call (chain-specific)
-    } else if (tx.data && tx.data.length >= 10) {
-      // Check for ERC-20 token transfer
+    // Determine all applicable types for this transaction
+    const types: ('transfer' | 'contract' | 'token' | 'inference')[] = [];
+    let isERC20Transfer = false;
+    let isInference = false;
+    
+    // Check for ERC-20 token transfer
+    if (tx.data && tx.data.length >= 10) {
       const selector = tx.data.slice(0, 10).toLowerCase();
       if (selector === ERC20_TRANSFER_SELECTOR || selector === ERC20_TRANSFER_FROM_SELECTOR) {
-        type = 'token'; // ERC-20 token transfer
-      } else {
-        type = 'contract'; // Other contract call
+        isERC20Transfer = true;
       }
-    } else if (hasValue) {
-      // Native coin transfer (WARD)
-      type = 'transfer';
-    } else if (tx.data && tx.data.length > 2) {
-      // Contract call without value (likely ERC-20 approve or similar)
-      type = 'contract';
     }
     
-    return {
+    // Check for Proof of Inference
+    if (tx.to !== null && proofOfInferenceAddress && tx.to.toLowerCase() === proofOfInferenceAddress) {
+      isInference = true;
+    }
+    
+    // Base transaction type (always shown)
+    if (tx.to === null) {
+      // Contract creation - always show as contract
+      types.push('contract');
+    } else if (hasValue) {
+      // Native transfer - always show as transfer comet (blue)
+      types.push('transfer');
+    } else if (hasData) {
+      // Contract call without value - show as contract comet (pink)
+      types.push('contract');
+    } else {
+      // Default: plain transaction
+      types.push('transfer');
+    }
+    
+    // Additional visualizations for special types
+    if (isERC20Transfer) {
+      // ERC-20 transfer - add green token comet (in addition to base)
+      types.push('token');
+    }
+    
+    if (isInference) {
+      // Proof of Inference - add red explosion effect (in addition to base)
+      types.push('inference');
+    }
+    
+    // Create transaction objects for each type
+    const baseTx = {
       hash: tx.hash,
       blockNumber: tx.blockNumber || 0,
       from: tx.from,
       to: tx.to,
       value: tx.value.toString(),
       gasPrice: tx.gasPrice?.toString() || '0',
-      type,
     };
+    
+    return types.map(type => ({ ...baseTx, type }));
   }
 
   async getLatestBlock(): Promise<Block | null> {
