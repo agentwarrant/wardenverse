@@ -92,10 +92,34 @@ export class Engine {
       
       // Update existing entities with new dimensions
       this.updateEntityDimensions();
+      
+      console.log(`Canvas resized to ${width}x${height} (DPR: ${dpr})`);
     };
     
+    // Force layout reflow before getting dimensions
+    // This ensures the flexbox has calculated the container size
+    void this.canvas.offsetHeight;
+    
+    // Initial resize
     resize();
+    
+    // Also trigger resize after next frame to catch any late layout changes
+    requestAnimationFrame(() => {
+      resize();
+    });
+    
+    // Handle window resize
     window.addEventListener('resize', resize);
+    
+    // Also handle resize after fonts/images load (can affect layout)
+    if (document.readyState === 'complete') {
+      // Page already loaded, just do one more resize check
+      setTimeout(resize, 100);
+    } else {
+      window.addEventListener('load', () => {
+        resize();
+      });
+    }
   }
 
   private updateEntityDimensions(): void {
