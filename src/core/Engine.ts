@@ -213,13 +213,14 @@ export class Engine {
     this.blocks.set(block.number, visual);
     this.world.addBlockEntity(visual);
     
+    // Check if we need to remove old blocks (with melt effect)
     if (this.blocks.size > 50) {
       const oldest = Math.min(...this.blocks.keys());
       const oldVisual = this.blocks.get(oldest);
       if (oldVisual) {
-        this.world.removeBlockEntity(oldVisual);
+        // Initiate melt-down effect instead of instant removal
+        oldVisual.destroy();
       }
-      this.blocks.delete(oldest);
     }
     
     if (this.blockCountElement) {
@@ -266,10 +267,27 @@ export class Engine {
   private update(dt: number): void {
     this.world.update(dt);
     
-    for (const block of this.blocks.values()) {
+    // Update all blocks and track destroyed ones
+    const destroyedBlocks: number[] = [];
+    for (const [number, block] of this.blocks) {
       block.update(dt);
+      if (block.isDestroyed()) {
+        destroyedBlocks.push(number);
+      }
     }
     
+    // Remove fully melted blocks
+    for (const number of destroyedBlocks) {
+      const visual = this.blocks.get(number);
+      if (visual) {
+        this.world.removeBlockEntity(visual);
+      }
+      this.blocks.delete(number);
+    }
+    
+    if (destroyedBlocks.length > 0 && this.blockCountElement) {
+      this.blockCountElement.textContent = this.blocks.size.toString();
+    }
     for (const tx of this.pendingTransactions) {
       tx.update(dt);
     }

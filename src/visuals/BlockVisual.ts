@@ -64,6 +64,9 @@ export class BlockVisual {
   private screenHeight: number;
   private pattern: number[][];
   private colors: { [key: number]: [number, number, number] | null };
+  private isDestroying: boolean = false;
+  private destroyProgress: number = 0;
+  private destroyDuration: number = 800; // ms to melt
 
   constructor(block: Block, world: PixelWorld, screenWidth: number, screenHeight: number) {
     this.block = block;
@@ -101,6 +104,24 @@ export class BlockVisual {
     this.initPosition();
   }
 
+  /**
+   * Initiate the melt-down destruction effect.
+   * Returns true if destruction has started.
+   */
+  destroy(): boolean {
+    if (this.isDestroying) return false;
+    this.isDestroying = true;
+    this.destroyProgress = 0;
+    return true;
+  }
+
+  /**
+   * Check if the block has fully melted and should be removed.
+   */
+  isDestroyed(): boolean {
+    return this.isDestroying && this.destroyProgress >= 1;
+  }
+
   private createBirthExplosion(): void {
     const explosionRadius = 15 + this.targetSize / 2;
     this.world.createExplosion(this.x, this.y, explosionRadius, 1 + this.activityLevel);
@@ -118,6 +139,21 @@ export class BlockVisual {
   }
 
   update(dt: number): void {
+    // Handle destruction/melting
+    if (this.isDestroying) {
+      this.destroyProgress += dt * 1000 / this.destroyDuration;
+      
+      // Spawn melting particles during destruction
+      const meltIntensity = 1 - this.destroyProgress;
+      if (Math.random() < 0.3 * dt * 60 * meltIntensity) {
+        this.spawnMeltParticle();
+      }
+      
+      // Shrink during destruction
+      this.size = this.targetSize * (1 - this.destroyProgress);
+      return;
+    }
+    
     const age = Date.now() - this.birthTime;
     if (age < 600) {
       this.size = this.targetSize * (age / 600);
@@ -136,6 +172,47 @@ export class BlockVisual {
         this.y + Math.sin(angle) * dist,
         Math.random() > 0.5 ? PixelType.SPARK : PixelType.EMBER
       );
+    }
+  }
+
+  /**
+   * Spawn melting particles that fall down from the block.
+   */
+  private spawnMeltParticle(): void {
+    // Random position within the block area
+    const angle = Math.random() * Math.PI * 2;
+    const dist = Math.random() * this.size * 0.8;
+    const px = this.x + Math.cos(angle) * dist;
+    const py = this.y + Math.sin(angle) * dist;
+    
+    // Choose melt particle type based on progress
+    const rand = Math.random();
+    let particleType: PixelType;
+    const progress = this.destroyProgress;
+    
+    if (progress < 0.3) {
+      // Early phase: mostly fire and embers
+      particleType = rand < 0.6 ? PixelType.FIRE : PixelType.EMBER;
+    } else if (progress < 0.6) {
+      // Middle phase: mix of fire, embers, and smoke
+      if (rand < 0.3) particleType = PixelType.FIRE;
+      else if (rand < 0.6) particleType = PixelType.EMBER;
+      else if (rand < 0.8) particleType = PixelType.SMOKE;
+      else particleType = PixelType.DEBRIS;
+    } else {
+      // Late phase: mostly smoke and debris
+      if (rand < 0.4) particleType = PixelType.SMOKE;
+      else if (rand < 0.7) particleType = PixelType.DEBRIS;
+      else particleType = PixelType.DUST;
+    }
+    
+    this.world.setPixelScreen(px, py, particleType);
+    
+    // Also spawn a few extra particles for density
+    if (Math.random() < 0.3) {
+      const extraX = px + (Math.random() - 0.5) * 10;
+      const extraY = py + Math.random() * 5;
+      this.world.setPixelScreen(extraX, extraY, PixelType.SMOKE);
     }
   }
 
