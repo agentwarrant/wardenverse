@@ -45,10 +45,23 @@
       width: auto;
       filter: brightness(1);
     }
-    #logo-tagline {
-      font-size: 12px;
-      color: #888;
+    #logo-text {
+      display: flex;
+      flex-direction: column;
       margin-left: 12px;
+    }
+    #logo-title {
+      font-size: 18px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #60a5fa, #a78bfa, #f472b6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    #logo-tagline {
+      font-size: 11px;
+      color: #888;
       font-style: italic;
       letter-spacing: 0.5px;
     }
@@ -376,6 +389,12 @@
       #warden-logo {
         height: 28px;
       }
+      #logo-text {
+        display: none;
+      }
+      #logo-title {
+        display: none;
+      }
       #logo-tagline {
         display: none;
       }
@@ -677,7 +696,10 @@
     <div id="header">
       <div id="logo-container">
         <img src="/warden-navicon.png" alt="Wardenverse" id="warden-logo" />
-        <span id="logo-tagline">A vibe explorer for the agentic era</span>
+        <div id="logo-text">
+          <span id="logo-title">WARDENVERSE</span>
+          <span id="logo-tagline">A vibe explorer for the agentic era</span>
+        </div>
       </div>
       <div id="stats">
         <div class="stat">
