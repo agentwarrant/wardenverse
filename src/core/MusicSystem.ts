@@ -33,6 +33,7 @@ export class MusicSystem {
   private schedulerId: ReturnType<typeof setTimeout> | null = null;
   private nextNoteTime: number = 0;
   private currentStep: number = 0;
+  private iosUnlocked: boolean = false;
   
   // Volume settings
   private rhythmVolume: number = 0.3;
@@ -78,10 +79,42 @@ export class MusicSystem {
 
   constructor() {}
 
+  /**
+   * Detect iOS Safari
+   */
+  private isIOS(): boolean {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }
+
+  /**
+   * Play a silent buffer to unlock audio on iOS
+   * iOS requires this to be called from a user gesture handler
+   */
+  private playSilentBuffer(): void {
+    if (!this.audioContext || this.iosUnlocked) return;
+    
+    try {
+      // Create a short silent buffer
+      const buffer = this.audioContext.createBuffer(1, 1, this.audioContext.sampleRate);
+      const source = this.audioContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(this.audioContext.destination);
+      source.start(0);
+      source.stop(0.001);
+      this.iosUnlocked = true;
+      console.log('🎵 iOS audio unlocked');
+    } catch (e) {
+      console.warn('iOS audio unlock failed:', e);
+    }
+  }
+
   private async initAudio(): Promise<void> {
     if (this.audioContext) return;
     
-    this.audioContext = new AudioContext();
+    // Use webkitAudioContext for older iOS Safari
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    this.audioContext = new AudioContextClass();
     
     // Master gain
     this.masterGain = this.audioContext.createGain();
@@ -132,8 +165,30 @@ export class MusicSystem {
     await this.initAudio();
     if (!this.audioContext) return;
 
-    if (this.audioContext.state === 'suspended') {
-      await this.audioContext.resume();
+    // Handle both suspended and interrupted states (iOS can use 'interrupted')
+    if (this.audioContext.state === 'suspended' || this.audioContext.state === 'interrupted') {
+      try {
+        await this.audioContext.resume();
+      } catch (e) {
+        console.warn('Failed to resume AudioContext:', e);
+        return;
+      }
+    }
+
+    // iOS requires a silent buffer to be played in the same call stack as user gesture
+    if (this.isIOS()) {
+      this.playSilentBuffer();
+    }
+
+    // Double-check the context is running
+    if (this.audioContext.state !== 'running') {
+      console.warn('AudioContext not running, state:', this.audioContext.state);
+      // Try one more resume
+      try {
+        await this.audioContext.resume();
+      } catch (e) {
+        console.warn('Second resume attempt failed:', e);
+      }
     }
 
     this.isPlaying = true;
@@ -525,6 +580,46 @@ export class MusicSystem {
 
   public getIsPlaying(): boolean {
     return this.isPlaying;
+  }
+  
+  /**
+   * Handle page visibility changes (iOS interruption when switching apps)
+   */
+  public handleVisibilityChange(): void {
+    if (!this.audioContext) return;
+    
+    if (document.hidden) {
+      // Page is hidden, audio may be interrupted
+      // Don't stop playback, just note the state
+      console.log('🎵 Page hidden, audio may be interrupted');
+    } else if (this.isPlaying) {
+      // Page is visible again, resume if needed
+      if (this.audioContext.state === 'interrupted' || this.audioContext.state === 'suspended') {
+        this.audioContext.resume().then(() => {
+          console.log('🎵 AudioContext resumed after visibility change');
+        }).catch((e) => {
+          console.warn('Failed to resume after visibility change:', e);
+        });
+      }
+    }
+  }
+  
+  /**
+   * Check if audio is actually working (iOS diagnostic)
+   */
+  public async diagnose(): Promise<{state: string, sampleRate: number, baseLatency: string, isIOS: boolean}> {
+    if (!this.audioContext) {
+      return { state: 'no-context', sampleRate: 0, baseLatency: 'unknown', isIOS: this.isIOS() };
+    }
+    
+    await this.audioContext.resume();
+    
+    return {
+      state: this.audioContext.state,
+      sampleRate: this.audioContext.sampleRate,
+      baseLatency: (this.audioContext as any).baseLatency?.toString() || 'unknown',
+      isIOS: this.isIOS()
+    };
   }
   
   /**

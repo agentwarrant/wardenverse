@@ -48,6 +48,11 @@ async function main() {
   let musicEnabled = false;  // Will be set to true on first interaction
   let musicStarted = false;  // Track if we've successfully started
   
+  // Handle page visibility changes for iOS (app switching, phone calls, etc.)
+  document.addEventListener('visibilitychange', () => {
+    musicSystem.handleVisibilityChange();
+  });
+  
   // Set up background click sound
   engine.setOnBackgroundClick(() => {
     if (musicEnabled) {
@@ -102,13 +107,32 @@ async function main() {
   const startMusic = async () => {
     if (musicStarted) return;  // Already started
     try {
+      //iOS Safari requires AudioContext creation/resume in same call stack as user gesture
+      // The initAudio() now creates the context, and start() handles iOS unlock
       await musicSystem.start();
-      musicStarted = true;
-      musicEnabled = true;
-      const btn = document.getElementById('music-toggle');
-      if (btn) btn.innerHTML = '🔊 Music';
+      
+      // Verify audio is actually working
+      const diagnosis = await musicSystem.diagnose();
+      console.log('🎵 Audio diagnosis:', diagnosis);
+      
+      if (diagnosis.state === 'running') {
+        musicStarted = true;
+        musicEnabled = true;
+        const btn = document.getElementById('music-toggle');
+        if (btn) btn.innerHTML = '🔊 Music';
+      } else {
+        console.warn('AudioContext not running after start, state:', diagnosis.state);
+        // Try one more time
+        await musicSystem.start();
+        if ((await musicSystem.diagnose()).state === 'running') {
+          musicStarted = true;
+          musicEnabled = true;
+          const btn = document.getElementById('music-toggle');
+          if (btn) btn.innerHTML = '🔊 Music';
+        }
+      }
     } catch (e) {
-      console.log('Music start failed:', e);
+      console.error('Music start failed:', e);
     }
   };
   
