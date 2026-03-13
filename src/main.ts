@@ -8,6 +8,7 @@ import { BlockchainDataSource } from './data/BlockchainDataSource';
 import { TransactionType } from './data/BlockchainDataSource';
 import { MusicSystem } from './core/MusicSystem';
 import { TxHashScroll } from './ui/TxHashScroll';
+import { BurnOMeter } from './ui/BurnOMeter';
 import { CHAINS, DEFAULT_CHAIN, getChainById, Chain } from './core/Chains';
 import { setChainColors } from './visuals/BlockVisual';
 
@@ -56,6 +57,10 @@ async function main() {
   
   // Initialize the transaction hash scroll with info popup
   const txHashScroll = new TxHashScroll(infoPopup);
+  
+  // Initialize the Burn-O-Meter (tracks burned WARD on zero address)
+  const burnOMeter = new BurnOMeter(defaultChain.rpcUrl);
+  burnOMeter.start().catch(err => console.error('Failed to start Burn-O-Meter:', err));
   
   // Track transaction count for TPS calculation
   let txCount = 0;
