@@ -93,6 +93,7 @@ export class InfoPopup {
   private isVisible: boolean = false;
   private currentType: InfoType | null = null;
   private explorerBaseUrl: string = 'https://explorer.wardenprotocol.org';
+  private justOpened: boolean = false;
 
   constructor() {
     // Create overlay backdrop
@@ -133,6 +134,11 @@ export class InfoPopup {
 
   private setupCloseOnOutsideClick(): void {
     document.addEventListener('click', (e) => {
+      // Ignore clicks that just opened the popup (prevents immediate close)
+      if (this.justOpened) {
+        this.justOpened = false;
+        return;
+      }
       if (this.isVisible && !this.container.contains(e.target as Node)) {
         const txScroll = document.getElementById('tx-hash-scroll');
         const canvas = document.getElementById('main-canvas');
@@ -688,6 +694,7 @@ export class InfoPopup {
   }
 
   private show(): void {
+    this.justOpened = true;
     this.overlay.style.display = 'block';
     this.container.style.display = 'block';
     
