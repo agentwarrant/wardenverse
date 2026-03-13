@@ -325,50 +325,12 @@
 /* Responsive adjustments */
 @media (max-width: 768px) {
   #legend {
-    top: 70px;
+    top: 85px;
     bottom: auto;
-    right: 10px;
+    right: 5px;
     left: auto;
-    min-width: 140px;
-    max-width: 160px;
-  }
-  
-  .legend-text {
-    font-size: 8px;
-  }
-  
-  #legend h4 {
-    font-size: 8px;
-    padding: 10px 12px;
-  }
-  
-  .legend-item {
-    padding: 8px 12px;
-    gap: 10px;
-  }
-  
-  .legend-sprite {
-    width: 20px;
-    height: 20px;
-  }
-  
-  .legend-footer {
-    display: none;
-  }
-  
-  .legend-footer span {
-    font-size: 7px;
-  }
-}
-
-@media (max-width: 480px) {
-  #legend {
-    top: 62px;
-    bottom: auto;
-    right: 8px;
-    left: auto;
-    min-width: 120px;
-    max-width: 140px;
+    min-width: 110px;
+    max-width: 130px;
   }
   
   .legend-text {
@@ -377,11 +339,11 @@
   
   #legend h4 {
     font-size: 7px;
-    padding: 8px 10px;
+    padding: 6px 8px;
   }
   
   .legend-item {
-    padding: 6px 10px;
+    padding: 6px 8px;
     gap: 8px;
   }
   
@@ -399,13 +361,65 @@
   }
 }
 
+@media (max-width: 480px) {
+  #legend {
+    top: 80px;
+    bottom: auto;
+    right: 4px;
+    left: auto;
+    min-width: 100px;
+    max-width: 120px;
+  }
+  
+  .legend-text {
+    font-size: 6px;
+  }
+  
+  #legend h4 {
+    font-size: 6px;
+    padding: 5px 6px;
+  }
+  
+  .legend-item {
+    padding: 5px 6px;
+    gap: 6px;
+  }
+  
+  .legend-sprite {
+    width: 16px;
+    height: 16px;
+  }
+  
+  .legend-footer {
+    display: none;
+  }
+  
+  .legend-footer span {
+    font-size: 5px;
+  }
+}
+
 /* Landscape mobile - keep legend on side but smaller */
 @media (max-width: 896px) and (orientation: landscape) {
   #legend {
-    top: 65px;
+    top: 60px;
     bottom: auto;
-    right: 10px;
+    right: 8px;
     left: auto;
-    max-width: 160px;
+    max-width: 140px;
+  }
+  
+  .legend-text {
+    font-size: 7px;
+  }
+  
+  #legend h4 {
+    font-size: 7px;
+    padding: 6px 10px;
+  }
+  
+  .legend-item {
+    padding: 5px 10px;
+    gap: 8px;
   }
 }

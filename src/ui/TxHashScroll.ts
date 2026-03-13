@@ -174,35 +174,56 @@ export class TxHashScroll {
       /* Mobile responsive styles */
       @media (max-width: 768px) {
         #tx-hash-scroll-container {
-          bottom: 75px !important;
-          right: 10px !important;
-          left: 10px !important;
+          bottom: 60px !important;
+          right: 8px !important;
+          left: 8px !important;
         }
         #tx-hash-scroll-frame {
           max-width: 100%;
         }
+        #tx-hash-scroll-header {
+          padding: 6px 10px !important;
+          gap: 4px !important;
+        }
+        #tx-hash-scroll-header .terminal-dot {
+          width: 6px !important;
+          height: 6px !important;
+        }
         #tx-hash-scroll-header .terminal-title {
-          font-size: 6px;
+          font-size: 5px !important;
         }
         #tx-hash-scroll-content {
-          min-height: 60px;
-          max-height: 100px;
+          min-height: 50px !important;
+          max-height: 80px !important;
+          padding: 6px !important;
         }
         .tx-hash-entry {
-          font-size: 7px;
-          padding: 4px 2px;
+          font-size: 6px !important;
+          padding: 3px 2px !important;
+          gap: 6px !important;
         }
       }
       @media (max-width: 480px) {
         #tx-hash-scroll-container {
-          bottom: 65px !important;
+          bottom: 55px !important;
+          right: 4px !important;
+          left: 4px !important;
+        }
+        #tx-hash-scroll-header {
+          padding: 4px 8px !important;
+        }
+        #tx-hash-scroll-header .terminal-title {
+          font-size: 4px !important;
         }
         #tx-hash-scroll-content {
-          min-height: 50px;
-          max-height: 80px;
+          min-height: 40px !important;
+          max-height: 60px !important;
+          padding: 4px !important;
         }
         .tx-hash-entry {
-          font-size: 6px;
+          font-size: 5px !important;
+          padding: 2px 1px !important;
+          gap: 4px !important;
         }
       }
     `;
