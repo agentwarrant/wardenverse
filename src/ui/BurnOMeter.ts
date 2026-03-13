@@ -360,10 +360,12 @@ letter-spacing: 0.5px;
 }
 
 /* Mobile responsive */
-@media (max-width: 480px) {
+@media (max-width: 768px) {
 #burn-o-meter {
-bottom: 10px;
+bottom: auto;
+top: 70px;
 left: 10px;
+right: auto;
 min-width: 140px;
 }
 
@@ -397,11 +399,49 @@ font-size: 5px;
 }
 }
 
+@media (max-width: 480px) {
+#burn-o-meter {
+top: 65px;
+left: 8px;
+min-width: 120px;
+}
+
+.burn-header {
+padding: 6px 8px;
+}
+
+.burn-icon {
+font-size: 10px;
+}
+
+.burn-title {
+font-size: 5px;
+}
+
+.burn-content {
+padding: 8px;
+}
+
+.flame-canvas {
+width: 40px;
+height: 30px;
+}
+
+.burn-value {
+font-size: 10px;
+}
+
+.burn-label {
+font-size: 4px;
+}
+}
+
 /* Landscape mobile */
 @media (max-width: 896px) and (orientation: landscape) {
 #burn-o-meter {
-bottom: 10px;
+top: 60px;
 left: 10px;
+bottom: auto;
 }
 }
 `;

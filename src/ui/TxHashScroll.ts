@@ -171,6 +171,40 @@ export class TxHashScroll {
       #tx-hash-scroll-content::-webkit-scrollbar {
         display: none;
       }
+      /* Mobile responsive styles */
+      @media (max-width: 768px) {
+        #tx-hash-scroll-container {
+          bottom: 75px !important;
+          right: 10px !important;
+          left: 10px !important;
+        }
+        #tx-hash-scroll-frame {
+          max-width: 100%;
+        }
+        #tx-hash-scroll-header .terminal-title {
+          font-size: 6px;
+        }
+        #tx-hash-scroll-content {
+          min-height: 60px;
+          max-height: 100px;
+        }
+        .tx-hash-entry {
+          font-size: 7px;
+          padding: 4px 2px;
+        }
+      }
+      @media (max-width: 480px) {
+        #tx-hash-scroll-container {
+          bottom: 65px !important;
+        }
+        #tx-hash-scroll-content {
+          min-height: 50px;
+          max-height: 80px;
+        }
+        .tx-hash-entry {
+          font-size: 6px;
+        }
+      }
     `;
     document.head.appendChild(scrollbarStyle);
     

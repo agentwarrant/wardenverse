@@ -325,12 +325,12 @@
 /* Responsive adjustments */
 @media (max-width: 768px) {
   #legend {
-    top: auto;
-    bottom: 90px;
+    top: 70px;
+    bottom: auto;
     right: 10px;
-    left: 10px;
-    min-width: auto;
-    max-width: calc(100vw - 20px);
+    left: auto;
+    min-width: 140px;
+    max-width: 160px;
   }
   
   .legend-text {
@@ -353,7 +353,7 @@
   }
   
   .legend-footer {
-    padding: 8px 12px;
+    display: none;
   }
   
   .legend-footer span {
@@ -363,9 +363,12 @@
 
 @media (max-width: 480px) {
   #legend {
-    bottom: 70px;
+    top: 62px;
+    bottom: auto;
     right: 8px;
-    left: 8px;
+    left: auto;
+    min-width: 120px;
+    max-width: 140px;
   }
   
   .legend-text {
@@ -388,7 +391,7 @@
   }
   
   .legend-footer {
-    padding: 6px 10px;
+    display: none;
   }
   
   .legend-footer span {
