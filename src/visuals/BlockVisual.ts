@@ -8,6 +8,7 @@ import type { Engine, Block } from '../core/Engine';
 import { PixelWorld } from '../core/PixelWorld';
 import { PixelType } from '../core/PixelTypes';
 import { PIXEL_SIZE } from '../core/Config';
+import { renderPixelNumber } from './PixelDigits';
 
 // Predefined pixel-art block patterns (8x8 grid that gets scaled)
 const BLOCK_PATTERNS = {
@@ -414,13 +415,9 @@ export class BlockVisual {
       }
     }
     
-    // Block number (pixelated font)
-    const fontSize = Math.max(4, Math.floor(this.size * 0.3));
-    ctx.font = `bold ${fontSize}px monospace`;
-    ctx.fillStyle = '#1f2937';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(this.block.number.toString(), px, py);
+    // Block number (pixel art digits)
+    const digitPixelScale = Math.max(1, Math.floor(this.size / 16));
+    renderPixelNumber(ctx, this.block.number, px, py, digitPixelScale, '#1f2937');
   }
 
   getBlockNumber(): number {
