@@ -58,15 +58,15 @@ const TRANSACTION_ICONS: { [key: string]: string } = {
   `,
   inference: `
     <svg viewBox="0 0 16 16" width="16" height="16" style="image-rendering: pixelated;">
-      <rect x="6" y="1" width="4" height="2" fill="#a78bfa"/>
-      <rect x="4" y="3" width="8" height="2" fill="#a78bfa"/>
-      <rect x="3" y="5" width="10" height="2" fill="#c4b5fd"/>
-      <rect x="4" y="7" width="8" height="2" fill="#a78bfa"/>
-      <rect x="5" y="9" width="6" height="2" fill="#c4b5fd"/>
-      <rect x="6" y="11" width="4" height="2" fill="#a78bfa"/>
-      <rect x="7" y="13" width="2" height="2" fill="#c4b5fd"/>
-      <rect x="2" y="5" width="2" height="2" fill="#c4b5fd"/>
-      <rect x="12" y="5" width="2" height="2" fill="#c4b5fd"/>
+      <rect x="6" y="1" width="4" height="2" fill="#ff503c"/>
+      <rect x="4" y="3" width="8" height="2" fill="#ff7850"/>
+      <rect x="3" y="5" width="10" height="2" fill="#ffa064"/>
+      <rect x="4" y="7" width="8" height="2" fill="#ff7850"/>
+      <rect x="5" y="9" width="6" height="2" fill="#ffa064"/>
+      <rect x="6" y="11" width="4" height="2" fill="#ff503c"/>
+      <rect x="7" y="13" width="2" height="2" fill="#ffa064"/>
+      <rect x="2" y="5" width="2" height="2" fill="#ffa064"/>
+      <rect x="12" y="5" width="2" height="2" fill="#ffa064"/>
     </svg>
   `
 };
@@ -502,7 +502,7 @@ export class InfoPopup {
       transfer: { color: '#60a5fa', label: 'Native Transfer' },
       token: { color: '#34d399', label: 'Token Transfer' },
       contract: { color: '#f472b6', label: 'Contract Call' },
-      inference: { color: '#a78bfa', label: 'Proof of Inference' }
+      inference: { color: '#ff503c', label: 'Proof of Inference' }
     };
     
     const config = typeConfig[tx.type] || { color: '#60a5fa', label: tx.type };
@@ -776,9 +776,9 @@ export class InfoPopup {
       },
       inference: {
         title: 'Proof of Inference',
-        color: '#a78bfa',
+        color: '#ff503c',
         icon: TRANSACTION_ICONS.inference,
-        description: 'AI inference transactions with star-like effects, representing on-chain AI computations on the Warden network.'
+        description: 'AI inference transactions with dramatic red fire/explosion effects, representing on-chain AI computations on the Warden network. These are the largest, most intense comets with fire trails and plasma explosions.'
       }
     };
 

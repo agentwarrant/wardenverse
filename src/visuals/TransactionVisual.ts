@@ -42,6 +42,13 @@ const COMET_COLORS: { [type: string]: { [key: number]: [number, number, number] 
     2: [251, 156, 203],  // mid pink
     3: [252, 205, 229],  // bright pink
     4: [255, 255, 255],  // white core
+  },
+  inference: {
+    0: null,
+    1: [255, 80, 60],    // outer red
+    2: [255, 120, 80],   // mid red-orange
+    3: [255, 160, 100],  // bright orange
+    4: [255, 255, 200],  // bright yellow-white core
   }
 };
 
@@ -69,7 +76,10 @@ export class TransactionVisual {
     this.screenHeight = screenHeight;
     
     // Scale based on type
-    if (tx.type === 'token') {
+    if (tx.type === 'inference') {
+      this.size = 6;      // Largest comet - big red explosion
+      this.intensity = 2; // Highest intensity
+    } else if (tx.type === 'token') {
       this.size = 5;
       this.intensity = 1.5;
     } else if (tx.type === 'contract') {
@@ -158,13 +168,26 @@ export class TransactionVisual {
     const px = t.x + (Math.random() - 0.5) * 4;
     const py = t.y + (Math.random() - 0.5) * 4;
     
-    const types = this.tx.type === 'token' 
+    // Proof of inference: dramatic fire and plasma trail
+    const types = this.tx.type === 'inference'
+      ? [PixelType.FIRE, PixelType.FIRE, PixelType.PLASMA, PixelType.SPARK]
+      : this.tx.type === 'token' 
       ? [PixelType.SPARK] // Reduced: only spark, no TOKEN particles during flight
       : this.tx.type === 'contract'
       ? [PixelType.PLASMA, PixelType.ELECTRIC]
       : [PixelType.SPARK];
     
     this.world.setPixelScreen(px, py, types[Math.floor(Math.random() * types.length)]);
+    
+    // For inference, spawn extra fire particles
+    if (this.tx.type === 'inference') {
+      // Spawn additional fire particles for dramatic effect
+      for (let i = 0; i < 2; i++) {
+        const fireX = t.x + (Math.random() - 0.5) * 8;
+        const fireY = t.y + (Math.random() - 0.5) * 8;
+        this.world.setPixelScreen(fireX, fireY, PixelType.FIRE);
+      }
+    }
     
     // For token transfers, spawn fewer floating TOKEN particles
     // Reduced from 0.75 to 0.9 for less pixel rain
@@ -176,8 +199,43 @@ export class TransactionVisual {
   }
 
   private createExitExplosion(): void {
-    const radius = this.tx.type === 'token' ? 10 : this.tx.type === 'contract' ? 14 : 10;
+    const radius = this.tx.type === 'inference' ? 18 : this.tx.type === 'token' ? 10 : this.tx.type === 'contract' ? 14 : 10;
     this.world.createExplosion(this.x, this.y, radius, this.intensity);
+    
+    // Proof of inference: big red explosion with fire and plasma
+    if (this.tx.type === 'inference') {
+      // Spawn INFERENCE pixels for the big red explosion
+      for (let i = 0; i < 8; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.random() * 25;
+        this.world.setPixelScreen(
+          this.x + Math.cos(angle) * dist,
+          this.y + Math.sin(angle) * dist,
+          PixelType.INFERENCE
+        );
+      }
+      // Add fire particles
+      for (let i = 0; i < 12; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.random() * 30;
+        this.world.setPixelScreen(
+          this.x + Math.cos(angle) * dist,
+          this.y + Math.sin(angle) * dist,
+          PixelType.FIRE
+        );
+      }
+      // Add plasma and sparks
+      for (let i = 0; i < 6; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.random() * 20;
+        this.world.setPixelScreen(
+          this.x + Math.cos(angle) * dist,
+          this.y + Math.sin(angle) * dist,
+          PixelType.PLASMA
+        );
+      }
+      return;
+    }
     
     if (this.tx.type === 'token') {
       // Spawn fewer floating TOKEN particles for coin transfer effect
