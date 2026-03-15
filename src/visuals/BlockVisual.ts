@@ -415,9 +415,10 @@ export class BlockVisual {
       }
     }
     
-    // Block number (pixel art digits)
-    const digitPixelScale = Math.max(1, Math.floor(this.size / 16));
-    renderPixelNumber(ctx, this.block.number, px, py, digitPixelScale, '#1f2937');
+    // Block number (pixel art digits) - show last 3 digits to fit inside block
+    const last3Digits = this.block.number % 1000;
+    const digitPixelScale = Math.max(1, Math.floor(this.size / 20));
+    renderPixelNumber(ctx, last3Digits, px, py, digitPixelScale, '#1f2937');
   }
 
   getBlockNumber(): number {
