@@ -319,11 +319,7 @@ export class Engine {
     const visual = new TransactionVisual(tx, this.world, this.screenWidth, this.screenHeight);
     this.pendingTransactions.push(visual);
     this.world.addTransactionEntity(visual);
-    
-    if (this.txCountElement) {
-      const current = parseInt(this.txCountElement.textContent || '0');
-      this.txCountElement.textContent = (current + 1).toString();
-    }
+    // Note: tx-count is updated in main.ts based on block.transactions.length
   }
 
   start(): void {
@@ -421,6 +417,11 @@ export class Engine {
       tx.update(dt);
     }
     
+    // Remove completed transactions from both the array and the world
+    const completedTxs = this.pendingTransactions.filter(tx => tx.isComplete());
+    for (const tx of completedTxs) {
+      this.world.removeTransactionEntity(tx);
+    }
     this.pendingTransactions = this.pendingTransactions.filter(tx => !tx.isComplete());
     
     this.ambientParticleTimer += dt;

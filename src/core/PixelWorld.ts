@@ -156,6 +156,11 @@ export class PixelWorld {
     this.transactionEntities.push(entity);
   }
 
+  removeTransactionEntity(entity: any): void {
+    const idx = this.transactionEntities.indexOf(entity);
+    if (idx>-1) this.transactionEntities.splice(idx, 1);
+  }
+
   // Convert screen coordinates to physics grid coordinates
   screenToGrid(screenX: number, screenY: number): { x: number; y: number } {
     return {
@@ -207,13 +212,11 @@ export class PixelWorld {
       this.worker.postMessage({ type: 'update', dt });
     }
     
-    // Update entities
+    // Update entities (blocks only - transactions are updated by Engine)
     for (const entity of this.blockEntities) {
       entity.update(dt);
     }
-    for (const entity of this.transactionEntities) {
-      entity.update(dt);
-    }
+    // Note: transactionEntities are updated by Engine.update() to avoid double updates
   }
 
   private updatePhysicsMainThread(dt: number): void {
