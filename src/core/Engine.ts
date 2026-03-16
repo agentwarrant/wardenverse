@@ -81,8 +81,7 @@ export class Engine {
       
       const dpr = window.devicePixelRatio || 1;
       
-      // Get dimensions from the CONTAINER, not the canvas itself
-      // The container has flex:1 and fills the available space
+      // Get dimensions from the container for accurate sizing
       const container = this.canvas.parentElement;
       const rect = container ? container.getBoundingClientRect() : this.canvas.getBoundingClientRect();
       
@@ -96,18 +95,11 @@ export class Engine {
         height = Math.max(100, window.innerHeight - 60); // Account for header
       }
       
-      // Store actual screen dimensions BEFORE changing canvas size
-      // This ensures render() uses the new dimensions immediately
+      // Store actual screen dimensions
       this.screenWidth = width;
       this.screenHeight = height;
       
-      // Set canvas style dimensions explicitly to match container
-      // This prevents browser from auto-scaling during resize
-      this.canvas.style.width = width + 'px';
-      this.canvas.style.height = height + 'px';
-      
-      // Set canvas buffer size (for sharp rendering)
-      // This CLEARS the canvas, so we must fill immediately after
+      // Set canvas buffer size (this CLEARS the canvas)
       this.canvas.width = width * dpr;
       this.canvas.height = height * dpr;
       
@@ -115,8 +107,7 @@ export class Engine {
       this.ctx.setTransform(1, 0, 0, 1, 0, 0);
       this.ctx.scale(dpr, dpr);
       
-      // CRITICAL: Fill with background IMMEDIATELY after resize
-      // This must happen before any render() call to prevent white traces
+      // Fill with background immediately after buffer resize
       this.ctx.fillStyle = '#0a0a12';
       this.ctx.fillRect(0, 0, width, height);
       
@@ -126,11 +117,10 @@ export class Engine {
       // Update existing entities with new dimensions
       this.updateEntityDimensions();
       
-      // Debounce the resize end - only mark as complete after a short delay
-      // This prevents flickering during continuous resize
+      // Debounce the resize end
       this.resizeTimeout = setTimeout(() => {
         this.isResizing = false;
-        console.log(`Canvas resize complete: ${width}x${height} (DPR: ${dpr})`);
+        console.log(`Canvas resized: ${width}x${height} (DPR: ${dpr})`);
       }, 50);
     };
     
