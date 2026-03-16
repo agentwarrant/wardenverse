@@ -78,7 +78,7 @@ export class AgentTicker {
       bottom: 0;
       left: 0;
       right: 0;
-      z-index: 40;
+      z-index: 35;
       pointer-events: none;
       font-family: 'Press Start 2P', monospace;
     `;
@@ -86,7 +86,7 @@ export class AgentTicker {
     // Create ticker frame
     const frame = document.createElement('div');
     frame.style.cssText = `
-      background: linear-gradient(180deg, rgba(15, 15, 25, 0.95) 0%, rgba(10, 10, 20, 0.98) 100%);
+      background: linear-gradient(180deg, rgba(15, 15, 25, 0.95)0%, rgba(10, 10, 20, 0.98) 100%);
       border-top: 2px solid rgba(255, 80, 60, 0.5);
       box-shadow: 
         0 -2px 20px rgba(255, 80, 60, 0.2),
@@ -97,11 +97,11 @@ export class AgentTicker {
       position: relative;
     `;
 
-    // Create header/label
+    // Create header/label - position to the right of BurnOMeter (which is at left:20px, min-width:180px)
     const headerContainer = document.createElement('div');
     headerContainer.style.cssText = `
       position: absolute;
-      left: 0;
+      left: 220px;
       top: 0;
       bottom: 0;
       background: linear-gradient(90deg, rgba(15, 15, 25, 1) 0%, rgba(15, 15, 25, 0.9) 70%, transparent 100%);
@@ -123,14 +123,14 @@ export class AgentTicker {
     `;
     headerContainer.appendChild(headerLabel);
 
-    // Create scrolling content area
+    // Create scrolling content area - start after BurnOMeter area
     this.tickerContent = document.createElement('div');
     this.tickerContent.id = 'agent-ticker-content';
     this.tickerContent.style.cssText = `
       display: flex;
       align-items: center;
       gap: 24px;
-      padding-left: 180px;
+      padding-left: 400px;
       padding-right: 20px;
       white-space: nowrap;
       animation: scroll-ticker 30s linear infinite;
@@ -222,53 +222,57 @@ export class AgentTicker {
         font-style: italic;
       }
       
-      /* Mobile responsive */
+      /* Mobile responsive - BurnOMeter moves to top on mobile, so ticker can use full width */
       @media (max-width: 768px) {
         #agent-ticker-container {
           font-size: 7px;
         }
-        
+
         .agent-ticker-item {
           padding: 3px 8px;
           gap: 6px;
         }
-        
+
         .agent-ticker-name {
           font-size: 7px;
         }
-        
+
         .agent-ticker-dot {
           width: 4px;
           height: 4px;
         }
-        
+
         #agent-ticker-content {
-          padding-left: 140px;
+          padding-left: 160px;
           gap: 16px;
         }
+
+        #agent-ticker-container .agent-ticker-header {
+          left: 10px !important;
+        }
       }
-      
+
       @media (max-width: 480px) {
         #agent-ticker-container {
           font-size: 6px;
         }
-        
+
         .agent-ticker-item {
           padding: 2px 6px;
           gap: 4px;
         }
-        
+
         .agent-ticker-name {
           font-size: 6px;
         }
-        
+
         .agent-ticker-dot {
           width: 3px;
           height: 3px;
         }
-        
+
         #agent-ticker-content {
-          padding-left: 120px;
+          padding-left: 140px;
           gap: 12px;
         }
       }
