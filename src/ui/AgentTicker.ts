@@ -25,7 +25,7 @@ const PRODUCTION_AGENTS: Record<string, string> = {
 };
 
 interface ActivityItem {
-  agentId: string;
+  agentId: number;
   timestamp: string;
   [key: string]: unknown;
 }
@@ -61,13 +61,10 @@ export class AgentTicker {
   private container: HTMLDivElement;
   private tickerContent: HTMLDivElement;
   private pollingInterval: number = 8000; // Poll every 8 seconds
-  private activityWindowMs: number = 120000; // Show agents active in last 2 minutes
+  private activityWindowMs: number = 180000; // Show agents active in last 3 minutes
   private activeAgents: Map<string, ActiveAgent> = new Map();
   private isRunning: boolean = false;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
-  private lastFetchTime: number = 0;
-  private animationId: number = 0;
-  private scrollPosition: number = 0;
 
   constructor() {
     // Create main container
@@ -86,7 +83,7 @@ export class AgentTicker {
     // Create ticker frame
     const frame = document.createElement('div');
     frame.style.cssText = `
-      background: linear-gradient(180deg, rgba(15, 15, 25, 0.95)0%, rgba(10, 10, 20, 0.98) 100%);
+      background: linear-gradient(180deg, rgba(15, 15, 25, 0.95) 0%, rgba(10, 10, 20, 0.98) 100%);
       border-top: 2px solid rgba(255, 80, 60, 0.5);
       box-shadow: 
         0 -2px 20px rgba(255, 80, 60, 0.2),
@@ -95,10 +92,12 @@ export class AgentTicker {
       padding: 10px 0;
       overflow: hidden;
       position: relative;
+      min-height: 30px;
     `;
 
     // Create header/label - position to the right of BurnOMeter (which is at left:20px, min-width:180px)
     const headerContainer = document.createElement('div');
+    headerContainer.className = 'agent-ticker-header';
     headerContainer.style.cssText = `
       position: absolute;
       left: 220px;
@@ -133,7 +132,6 @@ export class AgentTicker {
       padding-left: 400px;
       padding-right: 20px;
       white-space: nowrap;
-      animation: scroll-ticker 30s linear infinite;
       min-height: 24px;
     `;
 
@@ -192,12 +190,6 @@ export class AgentTicker {
         transition: all 0.2s ease;
       }
       
-      .agent-ticker-item:hover {
-        background: rgba(255, 80, 60, 0.2);
-        border-color: rgba(255, 80, 60, 0.5);
-        transform: scale(1.05);
-      }
-      
       .agent-ticker-dot {
         width: 6px;
         height: 6px;
@@ -213,13 +205,6 @@ export class AgentTicker {
         letter-spacing: 0.5px;
         --glow-color: rgba(255, 160, 100, 0.6);
         animation: agent-glow 2s ease-in-out infinite;
-      }
-      
-      .agent-ticker-idle {
-        color: #6b7280;
-        font-size: 9px;
-        letter-spacing: 1px;
-        font-style: italic;
       }
       
       /* Mobile responsive - BurnOMeter moves to top on mobile, so ticker can use full width */
@@ -247,7 +232,7 @@ export class AgentTicker {
           gap: 16px;
         }
 
-        #agent-ticker-container .agent-ticker-header {
+        .agent-ticker-header {
           left: 10px !important;
         }
       }
@@ -287,8 +272,7 @@ export class AgentTicker {
     // Add to page
     document.body.appendChild(this.container);
 
-    // Show idle state initially
-    this.renderIdle();
+    console.log('AgentTicker: Component created and added to DOM');
   }
 
   /**
@@ -333,7 +317,7 @@ export class AgentTicker {
       }
 
       const data: DashboardResponse = await response.json();
-      this.lastFetchTime = Date.now();
+      console.log('AgentTicker: Fetched data, activityItems:', data.state.activityItems.length);
 
       // Process activity items
       this.processActivity(data);
@@ -363,21 +347,21 @@ export class AgentTicker {
       return timestamp >= cutoff;
     });
 
-    // Group by agent and count proofs
-    const agentProofCounts: Map<string, number> = new Map();
+    console.log('AgentTicker: Recent items in window:', recentItems.length);
+
+    // Count production agent activity
+    let productionAgentCount = 0;
     
     for (const item of recentItems) {
       const agentId = String(item.agentId);
       
       // Only track production agents
       if (!PRODUCTION_AGENTS[agentId]) continue;
+      
+      productionAgentCount++;
 
-      const count = agentProofCounts.get(agentId) || 0;
-      agentProofCounts.set(agentId, count + 1);
-
-      // Update active agents
-      const existing = this.activeAgents.get(agentId);
       const timestamp = new Date(item.timestamp).getTime();
+      const existing = this.activeAgents.get(agentId);
       
       if (existing) {
         existing.lastActivity = Math.max(existing.lastActivity, timestamp);
@@ -392,6 +376,9 @@ export class AgentTicker {
       }
     }
 
+    console.log('AgentTicker: Production agent activity found:', productionAgentCount);
+    console.log('AgentTicker: Active agents:', Array.from(this.activeAgents.values()).map(a => a.name));
+
     // Update the display
     this.render();
   }
@@ -404,13 +391,17 @@ export class AgentTicker {
     this.tickerContent.innerHTML = '';
 
     if (this.activeAgents.size === 0) {
-      this.renderIdle();
+      // No active agents - show empty (user requested to remove idle text)
+      console.log('AgentTicker: No active agents, showing empty ticker');
+      this.tickerContent.style.animation = 'none';
       return;
     }
 
     // Sort agents by most recent activity
     const sortedAgents = Array.from(this.activeAgents.values())
       .sort((a, b) => b.lastActivity - a.lastActivity);
+
+    console.log('AgentTicker: Rendering agents:', sortedAgents.map(a => a.name));
 
     // Create items for each active agent (duplicate for seamless scrolling)
     const items = [...sortedAgents, ...sortedAgents]; // Duplicate for infinite scroll effect
@@ -432,25 +423,15 @@ export class AgentTicker {
       this.tickerContent.appendChild(item);
     }
 
+    // Enable scrolling animation
+    this.tickerContent.style.animation = 'scroll-ticker 30s linear infinite';
+
     // Adjust animation speed based on content width
     const contentWidth = this.tickerContent.scrollWidth / 2;
     if (contentWidth > 0) {
       const duration = Math.max(15, Math.min(60, contentWidth / 30));
       this.tickerContent.style.animationDuration = `${duration}s`;
     }
-  }
-
-  /**
-   * Render idle state when no agents are active
-   */
-  private renderIdle(): void {
-    this.tickerContent.innerHTML = '';
-
-    const idleText = document.createElement('span');
-    idleText.className = 'agent-ticker-idle';
-    idleText.textContent = 'Monitoring for proof of inferences...';
-    this.tickerContent.appendChild(idleText);
-    this.tickerContent.style.animation = 'none';
   }
 
   /**
