@@ -82,6 +82,11 @@ export class Engine {
         height = Math.max(100, window.innerHeight - 60); // Account for header
       }
       
+      // Early clear: fill canvas with background color immediately
+      // This prevents white pixel traces during resize transitions
+      this.ctx.fillStyle = '#0a0a12';
+      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      
       // Store actual screen dimensions
       this.screenWidth = width;
       this.screenHeight = height;
@@ -93,6 +98,10 @@ export class Engine {
       // Reset transform and scale for CSS pixels
       this.ctx.setTransform(1, 0, 0, 1, 0, 0);
       this.ctx.scale(dpr, dpr);
+      
+      // Fill with background again after resize to clear any artifacts
+      this.ctx.fillStyle = '#0a0a12';
+      this.ctx.fillRect(0, 0, width, height);
       
       // Update world with actual screen dimensions
       this.world.resize(width, height);
