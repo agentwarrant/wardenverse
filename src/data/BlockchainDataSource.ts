@@ -331,6 +331,142 @@ export class BlockchainDataSource {
   }
 
   /**
+   * Get a transaction by hash
+   */
+  async getTransaction(txHash: string): Promise<Transaction | null> {
+    try {
+      const tx = await this.provider.getTransaction(txHash);
+      if (!tx) return null;
+      
+      // Get the receipt to determine transaction type more accurately
+      const receipt = await this.provider.getTransactionReceipt(txHash);
+      
+      // Determine transaction type
+      let type: TransactionType = 'transfer';
+      
+      // Check for Proof of Inference
+      const proofOfInferenceAddress = this.currentChain.contracts?.proofOfInference?.toLowerCase();
+      if (tx.to && proofOfInferenceAddress && tx.to.toLowerCase() === proofOfInferenceAddress) {
+        type = 'inference';
+      } else if (tx.to === null) {
+        type = 'contract'; // Contract creation
+      } else if (tx.data && tx.data.length > 2) {
+        // Check for ERC-20 transfer
+        const ERC20_TRANSFER_SELECTOR = '0xa9059cbb';
+        const ERC20_TRANSFER_FROM_SELECTOR = '0x23b872dd';
+        const selector = tx.data.slice(0, 10).toLowerCase();
+        if (selector === ERC20_TRANSFER_SELECTOR || selector === ERC20_TRANSFER_FROM_SELECTOR) {
+          type = 'token';
+        } else if (tx.value > 0n) {
+          type = 'transfer';
+        } else {
+          type = 'contract';
+        }
+      } else if (tx.value > 0n) {
+        type = 'transfer';
+      }
+      
+      return {
+        hash: tx.hash,
+        blockNumber: tx.blockNumber || 0,
+        from: tx.from,
+        to: tx.to,
+        value: tx.value.toString(),
+        gasPrice: tx.gasPrice?.toString() || '0',
+        type
+      };
+    } catch (error) {
+      console.error('Error fetching transaction:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get a block by number or hash
+   */
+  async getBlockByNumber(number: number): Promise<Block | null> {
+    try {
+      const block = await this.provider.getBlock(number, true) as EthersBlock | null;
+      if (!block) return null;
+      
+      return {
+        number: block.number,
+        hash: block.hash || '',
+        timestamp: block.timestamp,
+        transactions: block.transactions.map((tx: string | TransactionResponse) => 
+          typeof tx === 'string' ? tx : tx.hash
+        ),
+        gasUsed: block.gasUsed.toString(),
+        gasLimit: block.gasLimit.toString(),
+        parentHash: block.parentHash,
+      };
+    } catch (error) {
+      console.error('Error fetching block by number:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get a block by hash
+   */
+  async getBlockByHash(hash: string): Promise<Block | null> {
+    try {
+      const block = await this.provider.getBlock(hash, true) as EthersBlock | null;
+      if (!block) return null;
+      
+      return {
+        number: block.number,
+        hash: block.hash || '',
+        timestamp: block.timestamp,
+        transactions: block.transactions.map((tx: string | TransactionResponse) => 
+          typeof tx === 'string' ? tx : tx.hash
+        ),
+        gasUsed: block.gasUsed.toString(),
+        gasLimit: block.gasLimit.toString(),
+        parentHash: block.parentHash,
+      };
+    } catch (error) {
+      console.error('Error fetching block by hash:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Search for a transaction or block by hash/number
+   * Returns null if not found
+   */
+  async search(query: string): Promise<{ type: 'transaction' | 'block'; data: unknown } | null> {
+    const trimmed = query.trim().toLowerCase();
+    
+    // Try as block number first (if purely numeric)
+    if (/^\d+$/.test(trimmed)) {
+      const blockNum = parseInt(trimmed, 10);
+      const block = await this.getBlockByNumber(blockNum);
+      if (block) {
+        return { type: 'block', data: block };
+      }
+      return null;
+    }
+    
+    // Try as transaction hash (64 hex chars)
+    if (/^0x[a-fA-F0-9]{64}$/.test(trimmed)) {
+      // Try as transaction first
+      const tx = await this.getTransaction(trimmed);
+      if (tx) {
+        return { type: 'transaction', data: tx };
+      }
+      
+      // If not a tx, try as block hash
+      const block = await this.getBlockByHash(trimmed);
+      if (block) {
+        return { type: 'block', data: block };
+      }
+    }
+    
+    return null;
+  }
+
+  /**
    * Fetch chain statistics including total transactions
    * Tries multiple API endpoints to get total transaction count
    */

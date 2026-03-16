@@ -10,6 +10,7 @@ import { MusicSystem } from './core/MusicSystem';
 import { TxHashScroll } from './ui/TxHashScroll';
 import { BurnOMeter } from './ui/BurnOMeter';
 import { AgentTicker } from './ui/AgentTicker';
+import { SearchBar } from './ui/SearchBar';
 import { CHAINS, DEFAULT_CHAIN, getChainById, Chain } from './core/Chains';
 import { setChainColors } from './visuals/BlockVisual';
 
@@ -400,6 +401,35 @@ async function main() {
     musicContainer.appendChild(musicBtn);
     musicContainer.appendChild(pressHere);
     header.appendChild(musicContainer);
+    
+    // Initialize the search bar
+    const searchBar = new SearchBar(infoPopup);
+    searchBar.setExplorerUrl(currentChain.explorerUrl || 'https://explorer.wardenprotocol.org');
+    searchBar.setLookupFn(async (query: string) => {
+      try {
+        const result = await dataSource.search(query);
+        if (result) {
+          if (result.type === 'transaction') {
+            return {
+              type: 'transaction',
+              hash: (result.data as { hash: string }).hash,
+              data: result.data
+            };
+          } else if (result.type === 'block') {
+            return {
+              type: 'block',
+              number: (result.data as { number: number }).number,
+              data: result.data
+            };
+          }
+        }
+        return null;
+      } catch (error) {
+        console.error('Search lookup error:', error);
+        return null;
+      }
+    });
+    header.appendChild(searchBar.getElement());
     
     // Remove animation when music starts (from any interaction)
     const originalStartMusic = startMusic;
