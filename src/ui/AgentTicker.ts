@@ -75,7 +75,7 @@ export class AgentTicker {
       bottom: 0;
       left: 0;
       right: 0;
-      z-index: 35;
+      z-index: 45;
       pointer-events: none;
       font-family: 'Press Start 2P', monospace;
     `;
@@ -269,8 +269,18 @@ export class AgentTicker {
     frame.appendChild(this.tickerContent);
     this.container.appendChild(frame);
 
-    // Add to page
-    document.body.appendChild(this.container);
+    // Add to page - try canvas-container first, then body
+    const canvasContainer = document.getElementById('canvas-container');
+    if (canvasContainer) {
+      canvasContainer.appendChild(this.container);
+      console.log('AgentTicker: Added to canvas-container');
+    } else {
+      document.body.appendChild(this.container);
+      console.log('AgentTicker: Added to body');
+    }
+
+    // Show initial state with header visible
+    this.showWaitingState();
 
     console.log('AgentTicker: Component created and added to DOM');
   }
@@ -384,6 +394,23 @@ export class AgentTicker {
   }
 
   /**
+   * Show waiting state while fetching data
+   */
+  private showWaitingState(): void {
+    this.tickerContent.innerHTML = '';
+    const waiting = document.createElement('span');
+    waiting.style.cssText = `
+      color: rgba(255, 160, 100, 0.5);
+      font-size: 9px;
+      letter-spacing: 1px;
+      padding-left: 20px;
+    `;
+    waiting.textContent = 'Connecting...';
+    this.tickerContent.appendChild(waiting);
+    this.tickerContent.style.animation = 'none';
+  }
+
+  /**
    * Render the ticker content
    */
   private render(): void {
@@ -391,9 +418,10 @@ export class AgentTicker {
     this.tickerContent.innerHTML = '';
 
     if (this.activeAgents.size === 0) {
-      // No active agents - show empty (user requested to remove idle text)
-      console.log('AgentTicker: No active agents, showing empty ticker');
+      // No active agents - show empty but with header visible
+      console.log('AgentTicker: No active agents in window, ticker empty');
       this.tickerContent.style.animation = 'none';
+      // Don't add any content - just show the header
       return;
     }
 
