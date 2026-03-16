@@ -100,10 +100,10 @@ export class AgentTicker {
     headerContainer.className = 'agent-ticker-header';
     headerContainer.style.cssText = `
       position: absolute;
-      left: 220px;
+      left: 200px;
       top: 0;
       bottom: 0;
-      background: linear-gradient(90deg, rgba(15, 15, 25, 1) 0%, rgba(15, 15, 25, 0.9) 70%, transparent 100%);
+      background: linear-gradient(90deg, rgba(10, 10, 20, 1) 0%, rgba(10, 10, 20, 0.95) 60%, transparent 100%);
       padding: 10px 15px;
       z-index: 10;
       display: flex;
@@ -122,15 +122,15 @@ export class AgentTicker {
     `;
     headerContainer.appendChild(headerLabel);
 
-    // Create scrolling content area - start after BurnOMeter area
+    // Create scrolling content area - starts after header, scrolls left to right
     this.tickerContent = document.createElement('div');
     this.tickerContent.id = 'agent-ticker-content';
     this.tickerContent.style.cssText = `
       display: flex;
       align-items: center;
       gap: 24px;
-      padding-left: 400px;
-      padding-right: 20px;
+      padding-left: 450px;
+      padding-right: 50px;
       white-space: nowrap;
       min-height: 24px;
     `;
@@ -138,7 +138,7 @@ export class AgentTicker {
     // Add CSS animations
     const styleSheet = document.createElement('style');
     styleSheet.textContent = `
-      @keyframes scroll-ticker {
+      @keyframes scroll-ticker-left {
         0% {
           transform: translateX(0);
         }
@@ -207,6 +207,19 @@ export class AgentTicker {
         animation: agent-glow 2s ease-in-out infinite;
       }
       
+      /* Fade mask on left side - before the header */
+      #agent-ticker-container::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 200px;
+        background: linear-gradient(90deg, rgba(10, 10, 20, 1) 0%, rgba(10, 10, 20, 0.9) 60%, transparent 100%);
+        z-index: 5;
+        pointer-events: none;
+      }
+      
       /* Mobile responsive - BurnOMeter moves to top on mobile, so ticker can use full width */
       @media (max-width: 768px) {
         #agent-ticker-container {
@@ -234,6 +247,10 @@ export class AgentTicker {
 
         .agent-ticker-header {
           left: 10px !important;
+        }
+        
+        #agent-ticker-container::before {
+          width: 50px;
         }
       }
 
@@ -349,6 +366,23 @@ export class AgentTicker {
   }
 
   /**
+   * Show waiting state while fetching data
+   */
+  private showWaitingState(): void {
+    this.tickerContent.innerHTML = '';
+    const waiting = document.createElement('span');
+    waiting.style.cssText = `
+      color: rgba(255, 160, 100, 0.5);
+      font-size: 9px;
+      letter-spacing: 1px;
+      padding-left: 20px;
+    `;
+    waiting.textContent = 'Connecting...';
+    this.tickerContent.appendChild(waiting);
+    this.tickerContent.style.animation = 'none';
+  }
+
+  /**
    * Show error state when fetch fails
    */
   private showErrorState(message: string): void {
@@ -422,23 +456,6 @@ export class AgentTicker {
   }
 
   /**
-   * Show waiting state while fetching data
-   */
-  private showWaitingState(): void {
-    this.tickerContent.innerHTML = '';
-    const waiting = document.createElement('span');
-    waiting.style.cssText = `
-      color: rgba(255, 160, 100, 0.5);
-      font-size: 9px;
-      letter-spacing: 1px;
-      padding-left: 20px;
-    `;
-    waiting.textContent = 'Connecting...';
-    this.tickerContent.appendChild(waiting);
-    this.tickerContent.style.animation = 'none';
-  }
-
-  /**
    * Render the ticker content
    */
   private render(): void {
@@ -479,8 +496,8 @@ export class AgentTicker {
       this.tickerContent.appendChild(item);
     }
 
-    // Enable scrolling animation
-    this.tickerContent.style.animation = 'scroll-ticker 30s linear infinite';
+    // Enable scrolling animation - scroll left to right (items move left)
+    this.tickerContent.style.animation = 'scroll-ticker-left 30s linear infinite';
 
     // Adjust animation speed based on content width
     const contentWidth = this.tickerContent.scrollWidth / 2;
