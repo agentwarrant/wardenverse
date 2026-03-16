@@ -25,6 +25,26 @@ export interface TransactionInfo {
 
 type InfoType = 'block' | 'transaction';
 
+// Agent ID to name mapping for proof of inference transactions
+const PRODUCTION_AGENTS: Record<string, string> = {
+  '1000001': 'Kaibot',
+  '1000002': 'Messari',
+  '1000003': 'WachAI',
+  '1000004': 'Uniswap',
+  '1000005': 'deBridge',
+  '1000006': 'BaseFarmer',
+  '1000007': 'EVMagent',
+  '1000008': 'SolanaAgent',
+  '1000009': 'WardenDocs',
+  '1000010': 'ImageGen',
+  '1000011': 'Jupiter',
+  '1000013': 'Levva',
+  '1000014': 'DCA',
+  '1000015': 'CoinGecko',
+  '1000016': 'Portfolio Analysis',
+  '10000012': 'Warden Agent'
+};
+
 // Pixel-art style icons for transaction types (8x8 scaled to 16x16)
 const TRANSACTION_ICONS: { [key: string]: string } = {
   transfer: `
@@ -83,6 +103,31 @@ const BLOCK_ICON = `
   </svg>
 `;
 
+// Interface for proof of inference API response
+interface ActivityItem {
+  proofHash: string;
+  agentId: number;
+  timestamp: string;
+  blockNumber: number;
+  txHash: string;
+  [key: string]: unknown;
+}
+
+interface DashboardResponse {
+  state: {
+    activityItems: ActivityItem[];
+    agentsInfo: Record<string, {
+      agentId: number;
+      cardData: {
+        name: string;
+        description?: string;
+        iconUrl?: string;
+      };
+    }>;
+    [key: string]: unknown;
+  };
+}
+
 export class InfoPopup {
   private container: HTMLDivElement;
   private overlay: HTMLDivElement;
@@ -94,6 +139,11 @@ export class InfoPopup {
   private currentType: InfoType | null = null;
   private explorerBaseUrl: string = 'https://explorer.wardenprotocol.org';
   private justOpened: boolean = false;
+  
+  // Cache for proof of inference agent lookups
+  private activityCache: Map<string, { agentId: number; agentName: string }> = new Map();
+  private cacheTimestamp: number = 0;
+  private cacheTTL: number = 30000; // 30 seconds cache TTL
 
   constructor() {
     // Create overlay backdrop
@@ -155,6 +205,58 @@ export class InfoPopup {
         this.hide();
       }
     });
+  }
+
+  /**
+   * Fetch proof of inference activity data and update cache
+   */
+  private async fetchActivityData(): Promise<void> {
+    // Check if cache is still valid
+    if (Date.now() - this.cacheTimestamp < this.cacheTTL && this.activityCache.size > 0) {
+      return;
+    }
+
+    try {
+      const apiUrl = '/api/proofs/v1/dashboard';
+      const response = await fetch(apiUrl, {
+        headers: { 'Accept': 'application/json' },
+      });
+
+      if (!response.ok) {
+        console.error('InfoPopup: Failed to fetch activity data:', response.status);
+        return;
+      }
+
+      const data: DashboardResponse = await response.json();
+      
+      // Build lookup cache from activity items
+      this.activityCache.clear();
+      
+      for (const item of data.state.activityItems) {
+        const agentId = String(item.agentId);
+        // Get agent name from agentsInfo or fall back to PRODUCTION_AGENTS mapping
+        const agentInfo = data.state.agentsInfo[agentId];
+        const agentName = agentInfo?.cardData?.name || PRODUCTION_AGENTS[agentId] || `Agent ${agentId}`;
+        
+        this.activityCache.set(item.txHash.toLowerCase(), {
+          agentId: item.agentId,
+          agentName: agentName
+        });
+      }
+      
+      this.cacheTimestamp = Date.now();
+      console.log('InfoPopup: Cached', this.activityCache.size, 'proof of inference activities');
+    } catch (error) {
+      console.error('InfoPopup: Error fetching activity data:', error);
+    }
+  }
+
+  /**
+   * Look up agent info for a transaction hash
+   */
+  private async getAgentForTx(txHash: string): Promise<{ agentId: number; agentName: string } | null> {
+    await this.fetchActivityData();
+    return this.activityCache.get(txHash.toLowerCase()) || null;
   }
 
   private createGameFrame(title: string, icon: string, accentColor: string): string {
@@ -495,7 +597,7 @@ export class InfoPopup {
     this.show();
   }
 
-  showTransaction(tx: TransactionInfo): void {
+  async showTransaction(tx: TransactionInfo): Promise<void> {
     this.currentType = 'transaction';
     
     const typeConfig: { [key: string]: { color: string; label: string } } = {
@@ -525,6 +627,36 @@ export class InfoPopup {
 
     const gasPriceGwei = tx.gasPrice ? (Number(BigInt(tx.gasPrice)) / 1e9).toFixed(2) : '0';
 
+    // For inference transactions, fetch agent info
+    let agentSection = '';
+    if (tx.type === 'inference') {
+      const agentInfo = await this.getAgentForTx(tx.hash);
+      if (agentInfo) {
+        agentSection = `
+          <div class="stat-row">
+            <div class="stat-box stat-box-full">
+              <div class="stat-label">Agent Invoked</div>
+              <div class="stat-value highlight" style="color: #ff7850; font-family: 'Press Start 2P', cursive; font-size: 11px;">
+                ⚡ ${this.escapeHtml(agentInfo.agentName)}
+              </div>
+            </div>
+          </div>
+        `;
+      } else {
+        // Show loading/placeholder if agent info not found
+        agentSection = `
+          <div class="stat-row">
+            <div class="stat-box stat-box-full">
+              <div class="stat-label">Agent Invoked</div>
+              <div class="stat-value" style="color: #888; font-size: 11px;">
+                Loading agent data...
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    }
+
     this.container.innerHTML = `
       ${this.createGameFrame(config.label.toUpperCase(), icon, config.color)}
         <div class="stat-row">
@@ -552,6 +684,8 @@ export class InfoPopup {
             </div>
           </div>
         </div>
+        
+        ${agentSection}
         
         <div class="stat-row">
           <div class="stat-box stat-box-full">
@@ -746,6 +880,12 @@ export class InfoPopup {
   private formatGas(gas: string): string {
     const num = BigInt(gas);
     return Number(num).toLocaleString();
+  }
+
+  private escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 
   showLegendInfo(type: string): void {
