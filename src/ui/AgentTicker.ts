@@ -95,6 +95,27 @@ export class AgentTicker {
       min-height: 30px;
     `;
 
+    // Create fade mask on the left side - hides content before it reaches the header
+    const fadeMask = document.createElement('div');
+    fadeMask.id = 'agent-ticker-fade-mask';
+    fadeMask.style.cssText = `
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 360px;
+      background: linear-gradient(90deg, 
+        rgba(10, 10, 20, 1) 0%, 
+        rgba(10, 10, 20, 1) 240px,
+        rgba(10, 10, 20, 0.9) 280px,
+        rgba(10, 10, 20, 0.5) 320px,
+        transparent 360px
+      );
+      z-index: 5;
+      pointer-events: none;
+    `;
+    frame.appendChild(fadeMask);
+
     // Create header/label - position to the right of BurnOMeter (which is at left:20px, min-width:180px)
     const headerContainer = document.createElement('div');
     headerContainer.className = 'agent-ticker-header';
@@ -103,12 +124,12 @@ export class AgentTicker {
       left: 200px;
       top: 0;
       bottom: 0;
-      background: linear-gradient(90deg, rgba(10, 10, 20, 1) 0%, rgba(10, 10, 20, 0.95) 60%, transparent 100%);
+      background: rgba(10, 10, 20, 1);
       padding: 10px 15px;
       z-index: 10;
       display: flex;
       align-items: center;
-      border-right: 1px solid rgba(255, 80, 60, 0.3);
+      border-right: 2px solid rgba(255, 80, 60, 0.5);
     `;
 
     const headerLabel = document.createElement('span');
@@ -207,19 +228,6 @@ export class AgentTicker {
         animation: agent-glow 2s ease-in-out infinite;
       }
       
-      /* Fade mask on left side - before the header */
-      #agent-ticker-container::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        width: 200px;
-        background: linear-gradient(90deg, rgba(10, 10, 20, 1) 0%, rgba(10, 10, 20, 0.9) 60%, transparent 100%);
-        z-index: 5;
-        pointer-events: none;
-      }
-      
       /* Mobile responsive - BurnOMeter moves to top on mobile, so ticker can use full width */
       @media (max-width: 768px) {
         #agent-ticker-container {
@@ -249,8 +257,8 @@ export class AgentTicker {
           left: 10px !important;
         }
         
-        #agent-ticker-container::before {
-          width: 50px;
+        #agent-ticker-fade-mask {
+          width: 100px !important;
         }
       }
 
