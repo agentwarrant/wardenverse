@@ -115,8 +115,10 @@
       image-rendering: pixelated;
       image-rendering: crisp-edges;
       cursor: crosshair;
-      /* Background color prevents white traces during resize */
+      /* Prevent white traces during resize */
       background: #0a0a12;
+      /* Create dedicated compositing layer for smoother resize */
+      will-change: transform;
     }
     #overlay {
       position: absolute;

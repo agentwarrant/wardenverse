@@ -50,6 +50,8 @@ export class Engine {
   private infoPopup: InfoPopup;
   private onBlockClick: ((block: Block) => void) | null = null;
   private onBackgroundClick: (() => void) | null = null;
+  private isResizing: boolean = false;
+  private resizeTimeout: ReturnType<typeof setTimeout> | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -69,6 +71,14 @@ export class Engine {
 
   private setupCanvas(): void {
     const resize = () => {
+      // Mark as resizing to pause rendering
+      this.isResizing = true;
+      
+      // Clear any pending resize timeout
+      if (this.resizeTimeout) {
+        clearTimeout(this.resizeTimeout);
+      }
+      
       const dpr = window.devicePixelRatio || 1;
       const rect = this.canvas.getBoundingClientRect();
       
@@ -82,16 +92,13 @@ export class Engine {
         height = Math.max(100, window.innerHeight - 60); // Account for header
       }
       
-      // Early clear: fill canvas with background color immediately
-      // This prevents white pixel traces during resize transitions
-      this.ctx.fillStyle = '#0a0a12';
-      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-      
-      // Store actual screen dimensions
+      // Store actual screen dimensions BEFORE changing canvas size
+      // This ensures render() uses the new dimensions immediately
       this.screenWidth = width;
       this.screenHeight = height;
       
       // Set canvas buffer size (for sharp rendering)
+      // This CLEARS the canvas, so we must fill immediately after
       this.canvas.width = width * dpr;
       this.canvas.height = height * dpr;
       
@@ -99,7 +106,8 @@ export class Engine {
       this.ctx.setTransform(1, 0, 0, 1, 0, 0);
       this.ctx.scale(dpr, dpr);
       
-      // Fill with background again after resize to clear any artifacts
+      // CRITICAL: Fill with background IMMEDIATELY after resize
+      // This must happen before any render() call to prevent white traces
       this.ctx.fillStyle = '#0a0a12';
       this.ctx.fillRect(0, 0, width, height);
       
@@ -109,7 +117,12 @@ export class Engine {
       // Update existing entities with new dimensions
       this.updateEntityDimensions();
       
-      console.log(`Canvas resized to ${width}x${height} (DPR: ${dpr})`);
+      // Debounce the resize end - only mark as complete after a short delay
+      // This prevents flickering during continuous resize
+      this.resizeTimeout = setTimeout(() => {
+        this.isResizing = false;
+        console.log(`Canvas resize complete: ${width}x${height} (DPR: ${dpr})`);
+      }, 50);
     };
     
     // Force layout reflow before getting dimensions
@@ -339,6 +352,10 @@ export class Engine {
 
   stop(): void {
     this.running = false;
+    if (this.resizeTimeout) {
+      clearTimeout(this.resizeTimeout);
+      this.resizeTimeout = null;
+    }
     this.world.destroy();
     this.infoPopup.destroy();
   }
@@ -391,8 +408,13 @@ export class Engine {
     this.lastTime = now;
     this.time += dt;
 
+    // Always update (physics, entity positions) even during resize
     this.update(dt);
-    this.render();
+    
+    // Only render when not resizing to prevent artifacts
+    if (!this.isResizing) {
+      this.render();
+    }
 
     requestAnimationFrame(this.loop);
   };
@@ -460,12 +482,21 @@ export class Engine {
   }
 
   private render(): void {
+    // Skip rendering during resize to prevent artifacts
+    if (this.isResizing) {
+      return;
+    }
+    
     // Use stored dimensions instead of getBoundingClientRect() to avoid
     // stale values during resize that cause white pixels at old positions
     const width = this.screenWidth;
     const height = this.screenHeight;
     
-    // Dark space background
+    // Dark space background - fill entire canvas first to clear any traces
+    this.ctx.fillStyle = '#0a0a12';
+    this.ctx.fillRect(0, 0, width, height);
+    
+    // Then draw gradient on top
     const bgGradient = this.ctx.createRadialGradient(
       width / 2, height / 2, 0,
       width / 2, height / 2, Math.max(width, height)
