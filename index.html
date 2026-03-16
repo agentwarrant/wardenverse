@@ -110,8 +110,10 @@
       position: absolute;
       top: 0;
       left: 0;
-      width: 100%;
-      height: 100%;
+      /* Don't use percentage width/height - causes browser scaling artifacts */
+      /* Dimensions are set explicitly via JS to match container */
+      width: auto;
+      height: auto;
       image-rendering: pixelated;
       image-rendering: crisp-edges;
       cursor: crosshair;

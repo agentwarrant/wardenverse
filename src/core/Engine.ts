@@ -97,6 +97,12 @@ export class Engine {
       this.screenWidth = width;
       this.screenHeight = height;
       
+      // CRITICAL: Set canvas style dimensions EXPLICITLY to prevent browser auto-scaling
+      // This is the key fix - CSS width:100%/height:100% causes browser to scale content
+      // during resize, creating artifacts. By setting explicit pixel dimensions, we prevent this.
+      this.canvas.style.width = width + 'px';
+      this.canvas.style.height = height + 'px';
+      
       // Set canvas buffer size (for sharp rendering)
       // This CLEARS the canvas, so we must fill immediately after
       this.canvas.width = width * dpr;
