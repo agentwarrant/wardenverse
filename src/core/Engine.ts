@@ -80,13 +80,17 @@ export class Engine {
       }
       
       const dpr = window.devicePixelRatio || 1;
-      const rect = this.canvas.getBoundingClientRect();
+      
+      // Get dimensions from the CONTAINER, not the canvas itself
+      // The container has flex:1 and fills the available space
+      const container = this.canvas.parentElement;
+      const rect = container ? container.getBoundingClientRect() : this.canvas.getBoundingClientRect();
       
       // Ensure we have valid dimensions - use window size as fallback
       let width = Math.max(100, rect.width);
       let height = Math.max(100, rect.height);
       
-      // Fallback to window dimensions if canvas rect is too small
+      // Fallback to window dimensions if container rect is too small
       if (width < 100 || height < 100) {
         width = Math.max(100, window.innerWidth);
         height = Math.max(100, window.innerHeight - 60); // Account for header
@@ -97,9 +101,8 @@ export class Engine {
       this.screenWidth = width;
       this.screenHeight = height;
       
-      // CRITICAL: Set canvas style dimensions EXPLICITLY to prevent browser auto-scaling
-      // This is the key fix - CSS width:100%/height:100% causes browser to scale content
-      // during resize, creating artifacts. By setting explicit pixel dimensions, we prevent this.
+      // Set canvas style dimensions explicitly to match container
+      // This prevents browser from auto-scaling during resize
       this.canvas.style.width = width + 'px';
       this.canvas.style.height = height + 'px';
       

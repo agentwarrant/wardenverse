@@ -110,17 +110,16 @@
       position: absolute;
       top: 0;
       left: 0;
-      /* Don't use percentage width/height - causes browser scaling artifacts */
-      /* Dimensions are set explicitly via JS to match container */
-      width: auto;
-      height: auto;
+      width: 100%;
+      height: 100%;
       image-rendering: pixelated;
       image-rendering: crisp-edges;
       cursor: crosshair;
       /* Prevent white traces during resize */
       background: #0a0a12;
-      /* Create dedicated compositing layer for smoother resize */
-      will-change: transform;
+      /* Prevent browser from scaling canvas content during CSS resize */
+      object-fit: none;
+      object-position: left top;
     }
     #overlay {
       position: absolute;
