@@ -9,6 +9,7 @@ import { TransactionType } from './data/BlockchainDataSource';
 import { MusicSystem } from './core/MusicSystem';
 import { TxHashScroll } from './ui/TxHashScroll';
 import { BurnOMeter } from './ui/BurnOMeter';
+import { AgentTicker } from './ui/AgentTicker';
 import { CHAINS, DEFAULT_CHAIN, getChainById, Chain } from './core/Chains';
 import { setChainColors } from './visuals/BlockVisual';
 
@@ -66,6 +67,10 @@ async function main() {
   // Initialize the Burn-O-Meter (tracks burned WARD on zero address)
   const burnOMeter = new BurnOMeter(defaultChain.rpcUrl);
   burnOMeter.start().catch(err => console.error('Failed to start Burn-O-Meter:', err));
+
+  // Initialize the Agent Ticker (shows active agents with proof of inferences)
+  const agentTicker = new AgentTicker();
+  agentTicker.start().catch(err => console.error('Failed to start AgentTicker:', err));
   
   // Track transaction count for TPS calculation
   let txCount = 0;
@@ -184,6 +189,9 @@ async function main() {
     
     // Clear the tx hash scroll
     txHashScroll.clear();
+
+    // Restart the agent ticker (no state to clear, just continue polling)
+    // AgentTicker continues across chain switches since it monitors proof of inference API
     
     // Switch the chain
     const connected = await dataSource.switchChain(chainId);
