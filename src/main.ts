@@ -150,7 +150,21 @@ async function main() {
       const btn = document.getElementById('music-toggle');
       if (btn) btn.innerHTML = '🔇 Music';
     } else {
-      await startMusic();
+      // If music was started before but stopped, we need to restart it
+      if (musicStarted) {
+        // Music was previously started, just resume it
+        try {
+          await musicSystem.start();
+          musicEnabled = true;
+          const btn = document.getElementById('music-toggle');
+          if (btn) btn.innerHTML = '🔊 Music';
+        } catch (e) {
+          console.error('Music restart failed:', e);
+        }
+      } else {
+        // First time starting music
+        await startMusic();
+      }
     }
   };
   
