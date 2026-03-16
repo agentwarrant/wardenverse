@@ -21,6 +21,13 @@ export default defineConfig({
     port: 3000,
     open: true,
     host: true, // Listen on all interfaces (for tailscale access)
+    proxy: {
+      '/api/proofs': {
+        target: 'https://api.proofs.wardenprotocol.org',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/proofs/, ''),
+      },
+    },
   },
   preview: {
     port: 3000,

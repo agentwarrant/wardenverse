@@ -5,6 +5,10 @@
   "framework": "vite",
   "rewrites": [
     {
+      "source": "/api/proofs/:path*",
+      "destination": "https://api.proofs.wardenprotocol.org/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

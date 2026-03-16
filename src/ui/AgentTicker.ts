@@ -321,7 +321,17 @@ export class AgentTicker {
    */
   private async fetchActivity(): Promise<void> {
     try {
-      const response = await fetch('https://api.proofs.wardenprotocol.org/v1/dashboard');
+      // Always use proxy URL (Vite dev server proxy or Vercel rewrite)
+      const apiUrl = '/api/proofs/v1/dashboard';
+      
+      console.log('AgentTicker: Fetching from', apiUrl);
+      
+      const response = await fetch(apiUrl, {
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+      
       if (!response.ok) {
         throw new Error(`API returned ${response.status}`);
       }
@@ -333,8 +343,26 @@ export class AgentTicker {
       this.processActivity(data);
     } catch (error) {
       console.error('AgentTicker: Fetch error:', error);
-      // Keep showing last known state, don't clear on error
+      // Show error state
+      this.showErrorState(error instanceof Error ? error.message : 'Connection failed');
     }
+  }
+
+  /**
+   * Show error state when fetch fails
+   */
+  private showErrorState(message: string): void {
+    this.tickerContent.innerHTML = '';
+    const errorEl = document.createElement('span');
+    errorEl.style.cssText = `
+      color: rgba(255, 100, 100, 0.7);
+      font-size: 8px;
+      letter-spacing: 1px;
+      padding-left: 20px;
+    `;
+    errorEl.textContent = `Error: ${message.substring(0, 30)}`;
+    this.tickerContent.appendChild(errorEl);
+    this.tickerContent.style.animation = 'none';
   }
 
   /**
