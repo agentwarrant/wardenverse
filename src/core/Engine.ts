@@ -52,6 +52,9 @@ export class Engine {
   private onBackgroundClick: (() => void) | null = null;
   private isResizing: boolean = false;
   private resizeTimeout: ReturnType<typeof setTimeout> | null = null;
+  // Tab visibility handling
+  private isVisible: boolean = true;
+  private visibilityChangeHandler: (() => void) | null = null;
   // Laser mode state
   private laserMode: boolean = false;
   private laserBeam: { startX: number; startY: number; endX: number; endY: number; progress: number; active: boolean } | null = null;
@@ -82,6 +85,7 @@ export class Engine {
     this.setupCanvas();
     this.infoPopup = new InfoPopup();
     this.setupEventListeners();
+    this.setupVisibilityHandler();
     this.initialized = true;
   }
 
@@ -183,6 +187,31 @@ export class Engine {
     for (const tx of this.pendingTransactions) {
       tx.updateScreenDimensions(this.screenWidth, this.screenHeight);
     }
+  }
+
+  /**
+   * Set up visibility change handler to prevent black screen on tab switch.
+   * When a tab is backgrounded, requestAnimationFrame stops running and the
+   * canvas may be cleared by the browser. This handler forces a re-render
+   * when the tab becomes visible again.
+   */
+  private setupVisibilityHandler(): void {
+    this.visibilityChangeHandler = () => {
+      const wasHidden = !this.isVisible;
+      this.isVisible = document.visibilityState === 'visible';
+      
+      if (this.isVisible && wasHidden) {
+        // Tab just became visible again - force immediate re-render
+        // to clear any black screen
+        console.log('[Engine] Tab visible again, forcing re-render');
+        // Reset timing to avoid large delta time jump
+        this.lastTime = performance.now();
+        // Force an immediate render
+        this.render();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', this.visibilityChangeHandler);
   }
 
   private setupEventListeners(): void {
@@ -381,6 +410,11 @@ export class Engine {
       clearTimeout(this.resizeTimeout);
       this.resizeTimeout = null;
     }
+    // Clean up visibility handler
+    if (this.visibilityChangeHandler) {
+      document.removeEventListener('visibilitychange', this.visibilityChangeHandler);
+      this.visibilityChangeHandler = null;
+    }
     this.world.destroy();
     this.infoPopup.destroy();
   }
@@ -422,6 +456,17 @@ export class Engine {
     this.world.clear();
     if (this.blockCountElement) {
       this.blockCountElement.textContent = '0';
+    }
+  }
+
+  /**
+   * Force an immediate re-render of the canvas.
+   * Useful for recovering from visibility changes or other
+   * scenarios where the canvas may have been cleared.
+   */
+  forceRender(): void {
+    if (this.screenWidth > 0 && this.screenHeight > 0) {
+      this.render();
     }
   }
 
@@ -718,6 +763,15 @@ export class Engine {
     const now = performance.now();
     const dt = (now - this.lastTime) / 1000;
     this.lastTime = now;
+
+    // Skip updates and rendering when tab is hidden
+    // This prevents physics issues from large time deltas
+    // and saves CPU/GPU resources
+    if (!this.isVisible) {
+      requestAnimationFrame(this.loop);
+      return;
+    }
+
     this.time += dt;
 
     // Always update (physics, entity positions) even during resize
@@ -805,6 +859,12 @@ export class Engine {
   private render(): void {
     // Skip rendering during resize to prevent artifacts
     if (this.isResizing) {
+      return;
+    }
+    
+    // Ensure we have valid dimensions before rendering
+    if (this.screenWidth <= 0 || this.screenHeight <= 0) {
+      console.warn('[Engine] Invalid screen dimensions, skipping render');
       return;
     }
     
