@@ -472,17 +472,25 @@ export class AgentTicker {
   }
 
   /**
-   * Render the ticker content
+   * Render the ticker content - only ADD new agents, don't wipe existing ones
    */
   private render(): void {
-    // Clear current content
-    this.tickerContent.innerHTML = '';
+    // Remove inactive agents from tracking (they'll scroll off naturally)
+    const now = Date.now();
+    const cutoff = now - this.activityWindowMs;
+
+    for (const [id, displayed] of this.displayedAgents) {
+      const agent = this.activeAgents.get(id);
+      if (!agent || agent.lastActivity < cutoff) {
+        // Agent no longer active - remove from tracking
+        // The DOM element will scroll off naturally
+        this.displayedAgents.delete(id);
+      }
+    }
 
     if (this.activeAgents.size === 0) {
-      // No active agents - show empty but with header visible
       console.log('AgentTicker: No active agents in window, ticker empty');
       this.tickerContent.style.animation = 'none';
-      // Don't add any content - just show the header
       return;
     }
 
@@ -490,36 +498,86 @@ export class AgentTicker {
     const sortedAgents = Array.from(this.activeAgents.values())
       .sort((a, b) => b.lastActivity - a.lastActivity);
 
-    console.log('AgentTicker: Rendering agents:', sortedAgents.map(a => a.name));
+    console.log('AgentTicker: Active agents:', sortedAgents.map(a => a.name));
 
-    // Create items for each active agent (duplicate for seamless scrolling)
-    const items = [...sortedAgents, ...sortedAgents]; // Duplicate for infinite scroll effect
+    // Only ADD agents that aren't already displayed
+    let addedNew = false;
+    for (const agent of sortedAgents) {
+      if (!this.displayedAgents.has(agent.id)) {
+        console.log('AgentTicker: Adding new agent to ticker:', agent.name);
 
-    for (const agent of items) {
-      const item = document.createElement('div');
-      item.className = 'agent-ticker-item';
+        // Create item and add to RIGHT side (end of ticker content)
+        const item = document.createElement('div');
+        item.className = 'agent-ticker-item';
 
-      const dot = document.createElement('span');
-      dot.className = 'agent-ticker-dot';
+        const dot = document.createElement('span');
+        dot.className = 'agent-ticker-dot';
 
-      const name = document.createElement('span');
-      name.className = 'agent-ticker-name';
-      name.textContent = agent.name;
+        const name = document.createElement('span');
+        name.className = 'agent-ticker-name';
+        name.textContent = agent.name;
 
-      item.appendChild(dot);
-      item.appendChild(name);
+        item.appendChild(dot);
+        item.appendChild(name);
 
-      this.tickerContent.appendChild(item);
+        // Append to ticker (right side)
+        this.tickerContent.appendChild(item);
+
+        // Track this displayed agent
+        this.displayedAgents.set(agent.id, {
+          id: agent.id,
+          name: agent.name,
+          element: item,
+          addedAt: now
+        });
+
+        addedNew = true;
+      }
     }
 
-    // Enable scrolling animation - scroll left to right (items move left)
-    this.tickerContent.style.animation = 'scroll-ticker-left 30s linear infinite';
+    // If we have items and scrolling isn't started, start it
+    if (this.displayedAgents.size > 0 && this.tickerContent.style.animation === 'none') {
+      // Start scrolling animation
+      const contentWidth = this.tickerContent.scrollWidth;
+      if (contentWidth > 0) {
+        const duration = Math.max(15, Math.min(60, contentWidth / 30));
+        this.tickerContent.style.animation = `scroll-ticker-left ${duration}s linear infinite`;
+      }
+    }
 
-    // Adjust animation speed based on content width
-    const contentWidth = this.tickerContent.scrollWidth / 2;
-    if (contentWidth > 0) {
-      const duration = Math.max(15, Math.min(60, contentWidth / 30));
-      this.tickerContent.style.animationDuration = `${duration}s`;
+    // If new items were added, recalculate animation
+    if (addedNew) {
+      // Check if we need more items for seamless scrolling
+      const contentWidth = this.tickerContent.scrollWidth;
+      const tickerWidth = this.tickerContent.parentElement?.clientWidth || 800;
+
+      if (contentWidth < tickerWidth * 2) {
+        // Need more content for seamless scroll - duplicate active agents
+        for (const agent of sortedAgents) {
+          if (this.displayedAgents.size >= 20) break; // Don't overfill
+
+          const item = document.createElement('div');
+          item.className = 'agent-ticker-item';
+
+          const dot = document.createElement('span');
+          dot.className = 'agent-ticker-dot';
+
+          const name = document.createElement('span');
+          name.className = 'agent-ticker-name';
+          name.textContent = agent.name;
+
+          item.appendChild(dot);
+          item.appendChild(name);
+          this.tickerContent.appendChild(item);
+        }
+      }
+
+      // Recalculate animation duration
+      const newContentWidth = this.tickerContent.scrollWidth;
+      if (newContentWidth > 0) {
+        const duration = Math.max(15, Math.min(60, newContentWidth / 30));
+        this.tickerContent.style.animationDuration = `${duration}s`;
+      }
     }
   }
 
