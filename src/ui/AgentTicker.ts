@@ -57,12 +57,20 @@ interface ActiveAgent {
   proofCount: number;
 }
 
+interface DisplayedAgent {
+  id: string;
+  name: string;
+  element: HTMLElement;
+  addedAt: number;
+}
+
 export class AgentTicker {
   private container: HTMLDivElement;
   private tickerContent: HTMLDivElement;
   private pollingInterval: number = 8000; // Poll every 8 seconds
   private activityWindowMs: number = 180000; // Show agents active in last 3 minutes
   private activeAgents: Map<string, ActiveAgent> = new Map();
+  private displayedAgents: Map<string, DisplayedAgent> = new Map();
   private isRunning: boolean = false;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
 

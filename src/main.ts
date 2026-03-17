@@ -65,6 +65,13 @@ async function main() {
     }
   });
   
+  // Set up laser fire sound
+  engine.setOnLaserFire(() => {
+    if (musicEnabled) {
+      musicSystem.playLaserSound();
+    }
+  });
+  
   // Initialize the transaction hash scroll with info popup
   const txHashScroll = new TxHashScroll(infoPopup);
   

@@ -55,6 +55,7 @@ export class Engine {
   // Laser mode state
   private laserMode: boolean = false;
   private laserBeam: { startX: number; startY: number; endX: number; endY: number; progress: number; active: boolean } | null = null;
+  private onLaserFire: (() => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -427,6 +428,13 @@ export class Engine {
   }
 
   /**
+   * Set a callback for when the laser is fired.
+   */
+  setOnLaserFire(callback: () => void): void {
+    this.onLaserFire = callback;
+  }
+
+  /**
    * Create a firework palm explosion effect.
    * This creates a burst pattern similar to a firework palm tree shape.
    */
@@ -506,6 +514,11 @@ export class Engine {
    * Fire a laser beam and destroy the target.
    */
   private fireLaser(targetX: number, targetY: number): void {
+    // Notify callback for sound effect
+    if (this.onLaserFire) {
+      this.onLaserFire();
+    }
+    
     // Determine best edge to shoot from (pick closest edge)
     const edges = [
       { x: 0, y: targetY }, // left edge

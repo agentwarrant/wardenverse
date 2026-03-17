@@ -581,6 +581,74 @@ export class MusicSystem {
   public getIsPlaying(): boolean {
     return this.isPlaying;
   }
+
+  /**
+   * Play a laser sound - fits the pentatonic scale for harmony
+   * Quick attack with frequency sweep for sci-fi laser feel
+   */
+  public playLaserSound(): void {
+    if (!this.isPlaying || !this.audioContext || !this.synthGain) return;
+    
+    const now = this.audioContext.currentTime;
+    
+    // Pick a note from the higher pentatonic range for laser (brighter sound)
+    const baseFreq = this.TRANSFER_NOTES[Math.floor(Math.random() * this.TRANSFER_NOTES.length)];
+    
+    // Create oscillators for laser sweep
+    const osc1 = this.audioContext.createOscillator();
+    const osc2 = this.audioContext.createOscillator();
+    
+    osc1.type = 'sawtooth';  // Bright, edgy sound
+    osc2.type = 'square';    // Adds body
+    
+    // Frequency sweep for laser effect (quick upward sweep)
+    osc1.frequency.setValueAtTime(baseFreq * 0.5, now);  // Start lower
+    osc1.frequency.exponentialRampToValueAtTime(baseFreq * 2, now + 0.05);  // Sweep up quickly
+    osc1.frequency.exponentialRampToValueAtTime(baseFreq, now + 0.15);  // Settle to base
+    
+    osc2.frequency.setValueAtTime(baseFreq * 0.5, now);
+    osc2.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, now + 0.05);
+    osc2.frequency.exponentialRampToValueAtTime(baseFreq * 0.75, now + 0.15);
+    
+    // Filter for brightness
+    const filter = this.audioContext.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(5000, now);  // Bright start
+    filter.frequency.exponentialRampToValueAtTime(1500, now + 0.2);  // Darken quickly
+    filter.Q.value = 2;
+    
+    // Gain envelope - quick attack, medium decay
+    const gain = this.audioContext.createGain();
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.35, now + 0.01);  // Quick attack
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);  // Medium decay
+    
+    // Connect
+    osc1.connect(filter);
+    osc2.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.synthGain);
+    
+    // Play
+    osc1.start(now);
+    osc2.start(now);
+    osc1.stop(now + 0.3);
+    osc2.stop(now + 0.3);
+    
+    // Add a subtle impact thump
+    setTimeout(() => {
+      if (!this.isPlaying || !this.audioContext || !this.synthGain) return;
+      this.playSynth({
+        frequency: 150,  // Low thump
+        type: 'sine',
+        gain: 0.3,
+        attack: 0.005,
+        decay: 0.1,
+        release: 0.05,
+        filterFreq: 400
+      });
+    }, 50);
+  }
   
   /**
    * Handle page visibility changes (iOS interruption when switching apps)
