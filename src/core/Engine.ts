@@ -735,9 +735,9 @@ export class Engine {
     const currentEndX = startX + (endX - startX) * Math.min(1, progress * 2);
     const currentEndY = startY + (endY - startY) * Math.min(1, progress * 2);
     
-    // Draw multiple layers for glow effect
-    //Outer glow
-    this.ctx.strokeStyle = 'rgba(255, 100, 50, 0.3)';
+    // Draw multiple layers for glow effect (GREEN LASER)
+    // Outer glow
+    this.ctx.strokeStyle = 'rgba(50, 255, 100, 0.3)';
     this.ctx.lineWidth = 12;
     this.ctx.lineCap = 'round';
     this.ctx.beginPath();
@@ -746,31 +746,31 @@ export class Engine {
     this.ctx.stroke();
     
     // Middle glow
-    this.ctx.strokeStyle = 'rgba(255, 200, 50, 0.5)';
+    this.ctx.strokeStyle = 'rgba(100, 255, 150, 0.5)';
     this.ctx.lineWidth = 6;
     this.ctx.beginPath();
     this.ctx.moveTo(startX, startY);
     this.ctx.lineTo(currentEndX, currentEndY);
     this.ctx.stroke();
     
-    //Inner core
-    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+    // Inner core
+    this.ctx.strokeStyle = 'rgba(200, 255, 220, 0.9)';
     this.ctx.lineWidth = 3;
     this.ctx.beginPath();
     this.ctx.moveTo(startX, startY);
     this.ctx.lineTo(currentEndX, currentEndY);
     this.ctx.stroke();
     
-    // Impact flash at target
+    // Impact flash at target (green)
     if (progress > 0.5) {
       const flashProgress = (progress - 0.5) * 2;
       const flashRadius = 30 + flashProgress * 50;
       const flashAlpha = 1 - flashProgress;
       
       const flash = this.ctx.createRadialGradient(endX, endY, 0, endX, endY, flashRadius);
-      flash.addColorStop(0, `rgba(255, 255, 200, ${flashAlpha})`);
-      flash.addColorStop(0.3, `rgba(255, 150, 50, ${flashAlpha * 0.7})`);
-      flash.addColorStop(1, 'rgba(255, 100, 50, 0)');
+      flash.addColorStop(0, `rgba(200, 255, 200, ${flashAlpha})`);
+      flash.addColorStop(0.3, `rgba(100, 255, 100, ${flashAlpha * 0.7})`);
+      flash.addColorStop(1, 'rgba(50, 255, 50, 0)');
       
       this.ctx.fillStyle = flash;
       this.ctx.beginPath();

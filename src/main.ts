@@ -447,8 +447,9 @@ async function main() {
       laserMode = !laserMode;
       engine.setLaserMode(laserMode);
       laserBtn.innerHTML = laserMode ? '🔫 Laser ON' : '🔫 Laser';
-      laserBtn.style.background = laserMode ? 'rgba(255, 100, 50, 0.8)' : 'rgba(30, 30, 45, 0.8)';
-      laserBtn.style.borderColor = laserMode ? 'rgba(255, 100, 50, 0.6)' : 'rgba(100, 100, 150, 0.3)';
+      laserBtn.style.background = laserMode ? 'rgba(50, 200, 100, 0.8)' : 'rgba(30, 30, 45, 0.8)';
+      laserBtn.style.borderColor = laserMode ? 'rgba(50, 255, 100, 0.6)' : 'rgba(100, 100, 150, 0.3)';
+      laserBtn.style.color = laserMode ? '#ffffff' : '#e0e0e0';
     };
     
     laserBtn.onclick = (e) => {
