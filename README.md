@@ -83,6 +83,20 @@ The simulation includes 19 distinct pixel types, each with unique physics proper
   - **Token transfers** → Bright green with intense sparkle, larger trails
   - **Contract calls** → Pink with plasma/lightning effects
   - **Regular transfers** → Blue with electric glow
+  - **Proof of Inference** → Dramatic red fire/explosion effects, the largest and most intense comets
+  
+### Proof of Inference
+
+**Proof of Inference** is Warden's onchain audit trail for AI Agents that links payments to user prompts and inferences.
+
+When a user submits a prompt to an AI Agent on Warden, the protocol generates a hash of the prompt together with the hash of the returned inference, and stores both in an onchain proof. This creates a transparent, verifiable trail showing that a specific inference request was made and paid for.
+
+Developers can generate the same hash offchain and match it against the onchain record, enabling:
+- Verifiable AI inference audit trails
+- Transparent payment tracking for AI services
+- Trustless verification of prompt-response pairs
+
+In Wardenverse, Proof of Inference transactions are visualized as dramatic red comets with fire trails and plasma explosions — the most visually striking transaction type, representing the computational energy of AI operations on the network.
   
 - **Particle Physics**
   - Fire spreads to gas, creating explosions

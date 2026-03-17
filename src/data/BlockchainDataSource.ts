@@ -212,7 +212,9 @@ export class BlockchainDataSource {
       }
     }
     
-    // Check for Proof of Inference
+    // Check for Proof of Inference - Warden's onchain audit trail for AI Agents
+    // that links payments to user prompts and inferences, creating verifiable
+    // proof that a specific inference request was made and paid for
     if (tx.to !== null && proofOfInferenceAddress && tx.to.toLowerCase() === proofOfInferenceAddress) {
       isInference = true;
     }
@@ -344,7 +346,7 @@ export class BlockchainDataSource {
       // Determine transaction type
       let type: TransactionType = 'transfer';
       
-      // Check for Proof of Inference
+      // Check for Proof of Inference - Warden's onchain audit trail for AI Agents
       const proofOfInferenceAddress = this.currentChain.contracts?.proofOfInference?.toLowerCase();
       if (tx.to && proofOfInferenceAddress && tx.to.toLowerCase() === proofOfInferenceAddress) {
         type = 'inference';

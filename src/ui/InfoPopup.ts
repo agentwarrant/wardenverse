@@ -918,7 +918,7 @@ export class InfoPopup {
         title: 'Proof of Inference',
         color: '#ff503c',
         icon: TRANSACTION_ICONS.inference,
-        description: 'AI inference transactions with dramatic red fire/explosion effects, representing on-chain AI computations on the Warden network. These are the largest, most intense comets with fire trails and plasma explosions.'
+        description: `<strong>Proof of Inference</strong> is Warden's onchain audit trail for AI Agents that links payments to user prompts and inferences.<br><br>When a user submits a prompt, Warden generates a hash of the prompt together with the hash of the returned inference, and stores both in an onchain proof. Developers can generate the same hash offchain and match it against the onchain record, creating a transparent trail showing that a specific inference request was made and paid for.<br><br><em>Visual:</em> Dramatic red fire/explosion effects — the largest, most intense comets with fire trails and plasma explosions.`
       }
     };
 
