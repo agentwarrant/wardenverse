@@ -115,7 +115,7 @@ export class BlockVisual {
   private lastGridX: number = -1;
   private lastGridY: number = -1;
   private lastGridSize: number = 0;
-  private lifespan: number = 5 * 60 * 1000; // 5 minutes in milliseconds
+  private lifespan: number = 2 * 60 * 1000; // 2 minutes in milliseconds - blocks decay naturally
   private age: number = 0;
 
   constructor(block: Block, world: PixelWorld, screenWidth: number, screenHeight: number) {

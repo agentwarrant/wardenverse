@@ -325,13 +325,17 @@ export class Engine {
     });
   }
 
+  // Maximum number of blocks allowed on screen
+  private static readonly MAX_BLOCKS = 80;
+
   addBlock(block: Block): void {
     const visual = new BlockVisual(block, this.world, this.screenWidth, this.screenHeight);
     this.blocks.set(block.number, visual);
     this.world.addBlockEntity(visual);
     
     // Check if we need to remove old blocks (with melt effect)
-    if (this.blocks.size > 50) {
+    // Remove enough blocks to get back under the limit
+    while (this.blocks.size > Engine.MAX_BLOCKS) {
       const oldest = Math.min(...this.blocks.keys());
       const oldVisual = this.blocks.get(oldest);
       if (oldVisual) {
