@@ -7,19 +7,23 @@
 export const PIXEL_SIZE = 4;
 
 // Maximum number of active pixels before culling (for performance)
-export const MAX_ACTIVE_PARTICLES = 50000;
+// Reduced from 50000 to prevent memory exhaustion and frame drops
+export const MAX_ACTIVE_PARTICLES = 20000;
 
 // Physics update rate (times per second)
 export const PHYSICS_RATE = 60;
 
 // Ambient particle count (scaled by screen size)
-export const AMBIENT_PARTICLE_DENSITY = 0.0008; // particles per pixel
+// Reduced to prevent initial particle overload
+export const AMBIENT_PARTICLE_DENSITY = 0.0005; // particles per pixel
 
 // Trail particle spawn rate (0-1)
-export const TRAIL_SPAWN_RATE = 0.15;
+// Reduced to prevent particle accumulation
+export const TRAIL_SPAWN_RATE = 0.08;
 
 // Explosion particle multiplier
-export const EXPLOSION_PARTICLE_MULTIPLIER = 30;
+// Reduced to prevent particle spikes
+export const EXPLOSION_PARTICLE_MULTIPLIER = 20;
 
 // Proof Of Inference contract address
 export const PROOF_OF_INFERENCE_ADDRESS = '0x510b5Df4612380c6564320d7DbbfdBe72AC0d529'.toLowerCase();

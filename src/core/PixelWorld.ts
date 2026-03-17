@@ -28,6 +28,7 @@ export class PixelWorld {
   private lastFpsUpdate: number = 0;
   private fps: number = 0;
   private time: number = 0;
+  private glowCount: number = 0; // Track glowing particles forperformance
 
   constructor(screenWidth: number, screenHeight: number) {
     // Use minimum size to ensure grid is valid even with small inputs
@@ -306,6 +307,11 @@ export class PixelWorld {
     // Clear glow canvas
     this.glowCtx.clearRect(0, 0, this.width, this.height);
     
+    // Performance: limit glowing particles to prevent frame drops
+    // Count glowing particles and only render the brightest ones
+    this.glowCount = 0;
+    const MAX_GLOW_PER_FRAME = 300;
+    
     // Update image data from pixels with enhanced glow
     for (let i = 0; i < this.pixels.length; i++) {
       const pixelType = this.pixels[i];
@@ -328,22 +334,27 @@ export class PixelWorld {
         b = Math.min(255, Math.floor(b * (1 - variance) + b * variance * Math.random()));
       }
       
-      // Enhance glow for emissive particles
+      // Enhance glow for emissive particles (simplified - no gradient per particle)
+      // Instead, we boost the color and skip expensive gradient rendering
       if (props.glow && props.glowIntensity > 0) {
         const glowBoost = props.glowIntensity * 0.5;
         r = Math.min(255, Math.floor(r + 255 * glowBoost));
         g = Math.min(255, Math.floor(g + 255 * glowBoost));
         b = Math.min(255, Math.floor(b + 255 * glowBoost));
         
-        // Draw glow on glow canvas
-        const x = i % this.width;
-        const y = Math.floor(i / this.width);
-        const glowRadius = Math.floor(1 + props.glowIntensity * 2);
-        const gradient = this.glowCtx.createRadialGradient(x, y, 0, x, y, glowRadius);
-        gradient.addColorStop(0, `rgba(${props.color[0]}, ${props.color[1]}, ${props.color[2]}, ${0.6 * props.glowIntensity})`);
-        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        this.glowCtx.fillStyle = gradient;
-        this.glowCtx.fillRect(x - glowRadius, y - glowRadius, glowRadius * 2, glowRadius * 2);
+        // Only render glow gradients for a limited number of particles
+        // Prioritize high-intensity glows
+        if (this.glowCount < MAX_GLOW_PER_FRAME && props.glowIntensity > 0.7) {
+          this.glowCount++;
+          const x = i % this.width;
+          const y = Math.floor(i / this.width);
+          const glowRadius = Math.floor(1 + props.glowIntensity * 2);
+          // Use a simpler glow approach - just a filled circle instead of gradient
+          this.glowCtx.fillStyle = `rgba(${props.color[0]}, ${props.color[1]}, ${props.color[2]}, ${0.3 * props.glowIntensity})`;
+          this.glowCtx.beginPath();
+          this.glowCtx.arc(x, y, glowRadius, 0, Math.PI * 2);
+          this.glowCtx.fill();
+        }
       }
       
       data[offset] = r;
