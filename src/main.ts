@@ -457,6 +457,12 @@ async function main() {
       laserBtn.style.background = laserMode ? 'rgba(50, 200, 100, 0.8)' : 'rgba(30, 30, 45, 0.8)';
       laserBtn.style.borderColor = laserMode ? 'rgba(50, 255, 100, 0.6)' : 'rgba(100, 100, 150, 0.3)';
       laserBtn.style.color = laserMode ? '#ffffff' : '#e0e0e0';
+      
+      // Show/hide score display
+      const scoreContainer = document.getElementById('laser-score-container');
+      if (scoreContainer) {
+        scoreContainer.style.display = laserMode ? 'flex' : 'none';
+      }
     };
     
     laserBtn.onclick = (e) => {

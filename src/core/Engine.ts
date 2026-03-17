@@ -56,6 +56,17 @@ export class Engine {
   private laserMode: boolean = false;
   private laserBeam: { startX: number; startY: number; endX: number; endY: number; progress: number; active: boolean } | null = null;
   private onLaserFire: (() => void) | null = null;
+  
+  // Scoring system for laser mode
+  private laserScore: number = 0;
+  private scoreElement: HTMLElement | null = null;
+  
+  // Score values for different entity types
+  private static readonly SCORE_BLOCK = 5;
+  private static readonly SCORE_TRANSACTION = 10;
+  private static readonly SCORE_TOKEN = 20;
+  private static readonly SCORE_INFERENCE = 50;
+  private static readonly SCORE_CONTRACT = 100;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -66,6 +77,7 @@ export class Engine {
     this.world = new PixelWorld(800, 600);
     this.blockCountElement = document.getElementById('block-count');
     this.txCountElement = document.getElementById('tx-count');
+    this.scoreElement = document.getElementById('laser-score');
     
     this.setupCanvas();
     this.infoPopup = new InfoPopup();
@@ -418,6 +430,11 @@ export class Engine {
    */
   setLaserMode(enabled: boolean): void {
     this.laserMode = enabled;
+    // Reset score when entering laser mode
+    if (enabled) {
+      this.laserScore = 0;
+      this.updateScoreDisplay();
+    }
   }
 
   /**
@@ -426,12 +443,86 @@ export class Engine {
   isLaserMode(): boolean {
     return this.laserMode;
   }
+  
+  /**
+   * Get current laser score.
+   */
+  getLaserScore(): number {
+    return this.laserScore;
+  }
+  
+  /**
+   * Add points to the laser score and update display.
+   */
+  private addScore(points: number): void {
+    this.laserScore += points;
+    this.updateScoreDisplay();
+  }
+  
+  /**
+   * Update the score display element.
+   */
+  private updateScoreDisplay(): void {
+    if (this.scoreElement) {
+      this.scoreElement.textContent = this.laserScore.toLocaleString();
+    }
+  }
 
   /**
    * Set a callback for when the laser is fired.
    */
   setOnLaserFire(callback: () => void): void {
     this.onLaserFire = callback;
+  }
+
+  /**
+   * Create a reduced explosion effect for laser mode.
+   * Less intense than the fireworkpalm to allow visibility of targets.
+   */
+  private createReducedExplosion(x: number, y: number): void {
+    // Fewer branches and particles for better visibility
+    const branchCount = 4 + Math.floor(Math.random() * 2);
+    
+    for (let branch = 0; branch < branchCount; branch++) {
+      const angle = (branch / branchCount) * Math.PI * 2 + Math.random() * 0.15;
+      
+      // Shorter trunks for reduced effect
+      const trunkLength = 15 + Math.random() * 10;
+      for (let i = 0; i < trunkLength; i++) {
+        const dist = i * 1.2;
+        const px = x + Math.cos(angle) * dist;
+        const py = y + Math.sin(angle) * dist;
+        
+        const rand = Math.random();
+        let type: PixelType;
+        if (rand < 0.5) type = PixelType.SPARK;
+        else if (rand < 0.8) type = PixelType.PLASMA;
+        else type = PixelType.ENERGY;
+        
+        this.world.setPixelScreen(px, py, type);
+      }
+      
+      // Fewer sparks shooting out
+      for (let i = 0; i < 2; i++) {
+        const sparkAngle = angle + (Math.random() - 0.5) * 0.3;
+        const sparkDist = trunkLength * 1.2 + Math.random() * 10;
+        const sx = x + Math.cos(sparkAngle) * sparkDist;
+        const sy = y + Math.sin(sparkAngle) * sparkDist;
+        this.world.setPixelScreen(sx, sy, PixelType.SPARK);
+      }
+    }
+    
+    // Smaller central flash
+    for (let i = 0; i < 8; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = Math.random() * 10;
+      const px = x + Math.cos(angle) * dist;
+      const py = y + Math.sin(angle) * dist;
+      this.world.setPixelScreen(px, py, PixelType.ENERGY);
+    }
+    
+    // Smaller ground effect
+    this.world.createExplosion(x, y, 30, 1.5);
   }
 
   /**
@@ -569,12 +660,17 @@ export class Engine {
     }
     
     // Check for hits on blocks and transactions
+    let hitSomething = false;
+    
     for (const block of this.blocks.values()) {
       if (block.containsPoint(targetX, targetY)) {
         block.destroy();
-        // Create explosion at block position
+        // Score for hitting a block
+        this.addScore(Engine.SCORE_BLOCK);
+        hitSomething = true;
+        // Create reduced explosion at block position
         const pos = block.getPosition();
-        this.createFireworkPalmExplosion(pos.x, pos.y);
+        this.createReducedExplosion(pos.x, pos.y);
         break;
       }
     }
@@ -586,15 +682,33 @@ export class Engine {
       const dy = targetY - pos.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
       if (distance <= 20) {
+        const txData = tx.getTransaction();
         tx.destroy();
-        this.createFireworkPalmExplosion(pos.x, pos.y);
+        hitSomething = true;
+        
+        // Score based on transaction type
+        switch (txData.type) {
+          case 'inference':
+            this.addScore(Engine.SCORE_INFERENCE);
+            break;
+          case 'contract':
+            this.addScore(Engine.SCORE_CONTRACT);
+            break;
+          case 'token':
+            this.addScore(Engine.SCORE_TOKEN);
+            break;
+          default:
+            this.addScore(Engine.SCORE_TRANSACTION);
+        }
+        
+        this.createReducedExplosion(pos.x, pos.y);
         break;
       }
     }
     
-    // If no hit, still create explosion at click point
-    if (this.laserMode && !this.blocks.values().next().done) {
-      this.createFireworkPalmExplosion(targetX, targetY);
+    // If no hit, still create small explosion at click point
+    if (this.laserMode && !hitSomething) {
+      this.createReducedExplosion(targetX, targetY);
     }
   }
 
