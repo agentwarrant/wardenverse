@@ -5,7 +5,7 @@
  */
 
 import { PixelType, PIXEL_PROPERTIES } from './PixelTypes';
-import { AMBIENT_PARTICLE_DENSITY, TRAIL_SPAWN_RATE, EXPLOSION_PARTICLE_MULTIPLIER }from './Config';
+import { AMBIENT_PARTICLE_DENSITY, TRAIL_SPAWN_RATE, EXPLOSION_PARTICLE_MULTIPLIER, MAX_ACTIVE_PARTICLES } from './Config';
 
 // Worker message types
 type InitMessage = { type: 'init'; width: number; height: number };
@@ -27,6 +27,7 @@ let height = 0;
 let pixels: Uint8Array;
 let pixelData: Float32Array; // velocity, temperature, lifetime, etc.
 let pendingExplosions: Array<{ x: number; y: number; radius: number; intensity: number }> = [];
+let particleCount: number = 0; // Track active particles for cleanup
 
 function initialize(w: number, h: number): void {
   width = Math.floor(w);
@@ -36,6 +37,7 @@ function initialize(w: number, h: number): void {
   
   // Initialize with empty space
   pixels.fill(PixelType.EMPTY);
+  particleCount = 0;
   
   // Add ambient particles
   addAmbientParticles();
@@ -43,8 +45,9 @@ function initialize(w: number, h: number): void {
 
 function addAmbientParticles(): void {
   // Scale particle count by grid size
-  const particleCount = Math.floor(width * height * AMBIENT_PARTICLE_DENSITY);
-  for (let i = 0; i < particleCount; i++) {
+  const targetCount = Math.floor(width * height * AMBIENT_PARTICLE_DENSITY);
+  let added = 0;
+  for (let i = 0; i < targetCount; i++) {
     const x = Math.floor(Math.random() * width);
     const y = Math.floor(Math.random() * height);
     const idx = y * width + x;
@@ -54,13 +57,18 @@ function addAmbientParticles(): void {
     if (pixels[idx] === PixelType.EMPTY) {
       if (rand > 0.9) {
         pixels[idx] = PixelType.STAR;
+        added++;
       } else if (rand > 0.7) {
         pixels[idx] = PixelType.DUST;
+        added++;
       } else if (rand > 0.5) {
         pixels[idx] = PixelType.EMBER;
+        added++;
       }
     }
   }
+  // Update global particle count
+  particleCount += added;
 }
 
 function createExplosion(centerX: number, centerY: number, radius: number, intensity: number): void {
@@ -350,6 +358,13 @@ function updatePhysics(dt: number): void {
       createLightning(stars[0].x, stars[0].y, stars[1].x, stars[1].y);
     }
   }
+  
+  // Enforce particle limit to prevent memory exhaustion and crashes
+  // Reconcile count periodically (every ~60 frames at 60fps = ~1 second)
+  if (Math.random() < 0.016) {
+    particleCount = countActiveParticles();
+  }
+  enforceParticleLimit();
 }
 
 function canMove(fromType: PixelType, fromIdx: number, toIdx: number): boolean {
@@ -376,12 +391,78 @@ function swapPixels(idx1: number, idx2: number): void {
 function setPixel(x: number, y: number, newType: PixelType): void {
   if (x < 0 || x >= width || y < 0 || y >= height) return;
   const idx = Math.floor(y) * width + Math.floor(x);
+  const oldType = pixels[idx];
   pixels[idx] = newType;
   // Reset lifetime counter and velocity
   pixelData[idx * 4] = 0;
   pixelData[idx * 4 + 1] = 0;
   pixelData[idx * 4 + 2] = 0;
   pixelData[idx * 4 + 3] = 0;
+  // Update particle count
+  if (oldType === PixelType.EMPTY && newType !== PixelType.EMPTY) {
+    particleCount++;
+  } else if (oldType !== PixelType.EMPTY && newType === PixelType.EMPTY) {
+    particleCount--;
+  }
+}
+
+/**
+ * Get count of active (non-empty) particles.
+ */
+function countActiveParticles(): number {
+  let count = 0;
+  for (let i = 0; i < pixels.length; i++) {
+    if (pixels[i] !== PixelType.EMPTY) {
+      count++;
+    }
+  }
+  return count;
+}
+
+/**
+ * Clean up particles when over the limit.
+ * Removes random particles until under the limit.
+ */
+function enforceParticleLimit(): void {
+  // Reconcile count if it seems off
+  if (particleCount < 0 || particleCount > pixels.length) {
+    particleCount = countActiveParticles();
+  }
+  
+  if (particleCount <= MAX_ACTIVE_PARTICLES) return;
+  
+  const toRemove = particleCount - MAX_ACTIVE_PARTICLES;
+  let removed = 0;
+  
+  // Remove particles from random positions until under limit
+  // Prioritize non-STAR, non-PLANET particles (they have infinite lifetime)
+  for (let attempts = 0; attempts < toRemove * 3 && removed < toRemove; attempts++) {
+    const idx = Math.floor(Math.random() * pixels.length);
+    const type = pixels[idx];
+    if (type !== PixelType.EMPTY && type !== PixelType.STAR && type !== PixelType.PLANET) {
+      pixels[idx] = PixelType.EMPTY;
+      pixelData[idx * 4] = 0;
+      pixelData[idx * 4 + 1] = 0;
+      pixelData[idx * 4 + 2] = 0;
+      pixelData[idx * 4 + 3] = 0;
+      particleCount--;
+      removed++;
+    }
+  }
+  
+  // If still over limit, remove all types including STAR
+  while (particleCount > MAX_ACTIVE_PARTICLES && removed < pixels.length) {
+    const idx = Math.floor(Math.random() * pixels.length);
+    if (pixels[idx] !== PixelType.EMPTY) {
+      pixels[idx] = PixelType.EMPTY;
+      pixelData[idx * 4] = 0;
+      pixelData[idx * 4 + 1] = 0;
+      pixelData[idx * 4 + 2] = 0;
+      pixelData[idx * 4 + 3] = 0;
+      particleCount--;
+      removed++;
+    }
+  }
 }
 
 function resize(w: number, h: number): void {
