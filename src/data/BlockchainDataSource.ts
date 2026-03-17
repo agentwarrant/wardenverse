@@ -48,6 +48,9 @@ export class BlockchainDataSource {
   private chainChangeCallbacks: ChainChangeCallback[] = [];
   private pollingInterval: NodeJS.Timeout | null = null;
   private lastBlockNumber: number = 0;
+  private wasHidden: boolean = false; // Track if tab was hidden
+  private maxBlocksPerPoll: number = 5; // Limit blocks processed per poll to avoid TPS spikes
+  private visibilityHandler: (() => void) | null = null; // Store handler for cleanup
 
   constructor(chainOrUrl: Chain | string) {
     // Support both Chain object and string URL for backwards compatibility
@@ -124,13 +127,34 @@ export class BlockchainDataSource {
     // Default to 2 seconds, but use chain's block time if available
     const pollInterval = this.currentChain.blockTime ? Math.max(1000, this.currentChain.blockTime * 500) : 2000;
     
+    // Track tab visibility to detect when user switches tabs
+    this.visibilityHandler = () => {
+      if (document.visibilityState === 'hidden') {
+        this.wasHidden = true;
+        console.log('Tab hidden - will skip old blocks on return');
+      }
+    };
+    document.addEventListener('visibilitychange', this.visibilityHandler);
+    
     this.pollingInterval = setInterval(async () => {
       try {
         const blockNumber = await this.provider.getBlockNumber();
         
         if (blockNumber > this.lastBlockNumber) {
-          // Fetch new blocks
-          for (let i = this.lastBlockNumber + 1; i <= blockNumber; i++) {
+          // If tab was hidden, skip to the latest block instead of processing all missed ones
+          // This prevents TPS spikes when returning to the tab after being away
+          if (this.wasHidden) {
+            console.log(`Tab was hidden - skipping from block ${this.lastBlockNumber} to ${blockNumber} (${blockNumber - this.lastBlockNumber} blocks skipped)`);
+            this.lastBlockNumber = blockNumber - 1; // Process only the latest block
+            this.wasHidden = false;
+          }
+          
+          // Limit the number of blocks processed per poll to avoid overwhelming the UI
+          // This prevents TPS spikes from burst processing
+          const blocksToProcess = Math.min(blockNumber - this.lastBlockNumber, this.maxBlocksPerPoll);
+          const startBlock = blockNumber - blocksToProcess + 1;
+          
+          for (let i = startBlock; i <= blockNumber; i++) {
             const block = await this.provider.getBlock(i, true) as EthersBlock | null;
             if (block) {
               this.processBlock(block);
@@ -325,7 +349,13 @@ export class BlockchainDataSource {
       clearInterval(this.pollingInterval);
       this.pollingInterval = null;
     }
+    // Remove visibility change listener
+    if (this.visibilityHandler) {
+      document.removeEventListener('visibilitychange', this.visibilityHandler);
+      this.visibilityHandler = null;
+    }
     this.connected = false;
+    this.wasHidden = false;
   }
 
   isConnected(): boolean {
