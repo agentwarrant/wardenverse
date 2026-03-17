@@ -38,6 +38,9 @@ async function main() {
   const dataSource = new BlockchainDataSource(defaultChain);
   let currentChain = defaultChain;
   
+  // Laser mode state
+  let laserMode = false;
+  
   // Initialize the rendering engine
   const engine = new Engine(canvas);
   
@@ -415,6 +418,45 @@ async function main() {
     musicContainer.appendChild(musicBtn);
     musicContainer.appendChild(pressHere);
     header.appendChild(musicContainer);
+    
+    // Create laser mode toggle button
+    const laserBtn = document.createElement('button');
+    laserBtn.id = 'laser-toggle';
+    laserBtn.innerHTML = '🔫 Laser';
+    laserBtn.style.cssText = `
+      background: rgba(30, 30, 45, 0.8);
+      border: 1px solid rgba(100, 100, 150, 0.3);
+      color: #e0e0e0;
+      padding: 6px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      font-family: inherit;
+      transition: all 0.2s ease;
+      margin-left: 10px;
+    `;
+    laserBtn.onmouseover = () => {
+      laserBtn.style.background = 'rgba(50, 50, 70, 0.9)';
+    };
+    laserBtn.onmouseout = () => {
+      laserBtn.style.background = laserMode ? 'rgba(255, 100, 50, 0.8)' : 'rgba(30, 30, 45, 0.8)';
+    };
+    
+    // Laser mode toggle function
+    const toggleLaserMode = () => {
+      laserMode = !laserMode;
+      engine.setLaserMode(laserMode);
+      laserBtn.innerHTML = laserMode ? '🔫 Laser ON' : '🔫 Laser';
+      laserBtn.style.background = laserMode ? 'rgba(255, 100, 50, 0.8)' : 'rgba(30, 30, 45, 0.8)';
+      laserBtn.style.borderColor = laserMode ? 'rgba(255, 100, 50, 0.6)' : 'rgba(100, 100, 150, 0.3)';
+    };
+    
+    laserBtn.onclick = (e) => {
+      e.stopPropagation();
+      toggleLaserMode();
+    };
+    
+    header.appendChild(laserBtn);
     
     // Initialize the search bar
     const searchBar = new SearchBar(infoPopup);

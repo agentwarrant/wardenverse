@@ -52,6 +52,9 @@ export class Engine {
   private onBackgroundClick: (() => void) | null = null;
   private isResizing: boolean = false;
   private resizeTimeout: ReturnType<typeof setTimeout> | null = null;
+  // Laser mode state
+  private laserMode: boolean = false;
+  private laserBeam: { startX: number; startY: number; endX: number; endY: number; progress: number; active: boolean } | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -181,6 +184,12 @@ export class Engine {
       const rect = this.canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
+
+      // Laser mode - fire laser and destroy target
+      if (this.laserMode) {
+        this.fireLaser(x, y);
+        return; // Don't show info popup or create regular explosion
+      }
 
       // Check if click is on a block
       for (const block of this.blocks.values()) {
@@ -399,6 +408,179 @@ export class Engine {
     }
   }
 
+  /**
+   * Set laser mode on/off.
+   */
+  setLaserMode(enabled: boolean): void {
+    this.laserMode = enabled;
+  }
+
+  /**
+   * Get current laser mode state.
+   */
+  isLaserMode(): boolean {
+    return this.laserMode;
+  }
+
+  /**
+   * Create a firework palm explosion effect.
+   * This creates a burst pattern similar to a firework palm tree shape.
+   */
+  private createFireworkPalmExplosion(x: number, y: number): void {
+    // Create multiple branches radiating outward like a palm tree
+    const branchCount = 8 + Math.floor(Math.random() * 4);
+    
+    for (let branch = 0; branch < branchCount; branch++) {
+      const angle = (branch / branchCount) * Math.PI * 2 + Math.random() * 0.2;
+      
+      // Main trunk of each branch
+      const trunkLength = 30 + Math.random() * 20;
+      for (let i = 0; i < trunkLength; i++) {
+        const dist = i * 1.5;
+        const px = x + Math.cos(angle) * dist;
+        const py = y + Math.sin(angle) * dist;
+        
+        // Fire colors along the trunk
+        const rand = Math.random();
+        let type: PixelType;
+        if (rand < 0.3) type = PixelType.FIRE;
+        else if (rand < 0.6) type = PixelType.SPARK;
+        else if (rand < 0.8) type = PixelType.PLASMA;
+        else type = PixelType.EXPLOSION;
+        
+        this.world.setPixelScreen(px, py, type);
+      }
+      
+      // Palm fronds at the end - spreading outward
+      const frondCount = 3 + Math.floor(Math.random() * 3);
+      for (let f = 0; f < frondCount; f++) {
+        const frondAngle = angle + (f - frondCount / 2) * 0.3;
+        const frondLength = 15 + Math.random() * 15;
+        const startX = x + Math.cos(angle) * trunkLength * 1.2;
+        const startY = y + Math.sin(angle) * trunkLength * 1.2;
+        
+        for (let i = 0; i < frondLength; i++) {
+          const px = startX + Math.cos(frondAngle) * i * 1.2;
+          const py = startY + Math.sin(frondAngle) * i * 1.2;
+          
+          // Brighter colors at the fronds
+          const rand = Math.random();
+          let type: PixelType;
+          if (rand < 0.4) type = PixelType.SPARK;
+          else if (rand < 0.7) type = PixelType.PLASMA;
+          else if (rand < 0.9) type = PixelType.ENERGY;
+          else type = PixelType.LIGHTNING;
+          
+          this.world.setPixelScreen(px, py, type);
+        }
+      }
+      
+      // Extra sparks shooting out
+      for (let i = 0; i < 5; i++) {
+        const sparkAngle = angle + (Math.random() - 0.5) * 0.5;
+        const sparkDist = trunkLength * 1.5 + Math.random() * 20;
+        const sx = x + Math.cos(sparkAngle) * sparkDist;
+        const sy = y + Math.sin(sparkAngle) * sparkDist;
+        this.world.setPixelScreen(sx, sy, PixelType.SPARK);
+      }
+    }
+    
+    // Central bright flash
+    for (let i = 0; i < 20; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = Math.random() * 20;
+      const px = x + Math.cos(angle) * dist;
+      const py = y + Math.sin(angle) * dist;
+      this.world.setPixelScreen(px, py, PixelType.LIGHTNING);
+    }
+    
+    // Ground effect - create explosion physics
+    this.world.createExplosion(x, y, 60, 2);
+  }
+
+  /**
+   * Fire a laser beam and destroy the target.
+   */
+  private fireLaser(targetX: number, targetY: number): void {
+    // Determine best edge to shoot from (pick closest edge)
+    const edges = [
+      { x: 0, y: targetY }, // left edge
+      { x: this.screenWidth, y: targetY }, // right edge
+      { x: targetX, y: 0 }, // top edge
+      { x: targetX, y: this.screenHeight }, // bottom edge
+    ];
+    
+    // Pick the closest edge
+    let startX = edges[0].x;
+    let startY = edges[0].y;
+    let minDist = Infinity;
+    
+    for (const edge of edges) {
+      const dist = Math.sqrt((edge.x - targetX) ** 2 + (edge.y - targetY) ** 2);
+      if (dist < minDist) {
+        minDist = dist;
+        startX = edge.x;
+        startY = edge.y;
+      }
+    }
+    
+    // Initialize laser beam animation
+    this.laserBeam = {
+      startX,
+      startY,
+      endX: targetX,
+      endY: targetY,
+      progress: 0,
+      active: true
+    };
+    
+    // Create particles along the beam path
+    const beamLength = Math.sqrt((targetX - startX) ** 2 + (targetY - startY) ** 2);
+    const steps = Math.floor(beamLength / 4);
+    
+    for (let i = 0; i < steps; i++) {
+      const t = i / steps;
+      const px = startX + (targetX - startX) * t;
+      const py = startY + (targetY - startY) * t;
+      
+      // Add laser particles with some randomness
+      if (Math.random() < 0.7) {
+        const offsetX = (Math.random() - 0.5) * 8;
+        const offsetY = (Math.random() - 0.5) * 8;
+        this.world.setPixelScreen(px + offsetX, py + offsetY, PixelType.PLASMA);
+      }
+    }
+    
+    // Check for hits on blocks and transactions
+    for (const block of this.blocks.values()) {
+      if (block.containsPoint(targetX, targetY)) {
+        block.destroy();
+        // Create explosion at block position
+        const pos = block.getPosition();
+        this.createFireworkPalmExplosion(pos.x, pos.y);
+        break;
+      }
+    }
+    
+    // Check for hits on transactions
+    for (const tx of this.pendingTransactions) {
+      const pos = tx.getPosition();
+      const dx = targetX - pos.x;
+      const dy = targetY - pos.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance <= 20) {
+        tx.destroy();
+        this.createFireworkPalmExplosion(pos.x, pos.y);
+        break;
+      }
+    }
+    
+    // If no hit, still create explosion at click point
+    if (this.laserMode && !this.blocks.values().next().done) {
+      this.createFireworkPalmExplosion(targetX, targetY);
+    }
+  }
+
   private loop = (): void => {
     if (!this.running) return;
 
@@ -420,6 +602,15 @@ export class Engine {
 
   private update(dt: number): void {
     this.world.update(dt);
+    
+    // Update laser beam animation
+    if (this.laserBeam && this.laserBeam.active) {
+      this.laserBeam.progress += dt * 5; // Fast animation
+      if (this.laserBeam.progress >= 1) {
+        this.laserBeam.active = false;
+        this.laserBeam = null;
+      }
+    }
     
     // Update all blocks and track destroyed ones
     const destroyedBlocks: number[] = [];
@@ -526,6 +717,62 @@ export class Engine {
     
     // Mouse glow
     this.renderMouseGlow();
+    
+    // Render laser beam if active
+    this.renderLaserBeam();
+  }
+
+  private renderLaserBeam(): void {
+    if (!this.laserBeam || !this.laserBeam.active) return;
+    
+    const { startX, startY, endX, endY, progress } = this.laserBeam;
+    
+    // Calculate current beam end position (animated)
+    const currentEndX = startX + (endX - startX) * Math.min(1, progress * 2);
+    const currentEndY = startY + (endY - startY) * Math.min(1, progress * 2);
+    
+    // Draw multiple layers for glow effect
+    //Outer glow
+    this.ctx.strokeStyle = 'rgba(255, 100, 50, 0.3)';
+    this.ctx.lineWidth = 12;
+    this.ctx.lineCap = 'round';
+    this.ctx.beginPath();
+    this.ctx.moveTo(startX, startY);
+    this.ctx.lineTo(currentEndX, currentEndY);
+    this.ctx.stroke();
+    
+    // Middle glow
+    this.ctx.strokeStyle = 'rgba(255, 200, 50, 0.5)';
+    this.ctx.lineWidth = 6;
+    this.ctx.beginPath();
+    this.ctx.moveTo(startX, startY);
+    this.ctx.lineTo(currentEndX, currentEndY);
+    this.ctx.stroke();
+    
+    //Inner core
+    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+    this.ctx.lineWidth = 3;
+    this.ctx.beginPath();
+    this.ctx.moveTo(startX, startY);
+    this.ctx.lineTo(currentEndX, currentEndY);
+    this.ctx.stroke();
+    
+    // Impact flash at target
+    if (progress > 0.5) {
+      const flashProgress = (progress - 0.5) * 2;
+      const flashRadius = 30 + flashProgress * 50;
+      const flashAlpha = 1 - flashProgress;
+      
+      const flash = this.ctx.createRadialGradient(endX, endY, 0, endX, endY, flashRadius);
+      flash.addColorStop(0, `rgba(255, 255, 200, ${flashAlpha})`);
+      flash.addColorStop(0.3, `rgba(255, 150, 50, ${flashAlpha * 0.7})`);
+      flash.addColorStop(1, 'rgba(255, 100, 50, 0)');
+      
+      this.ctx.fillStyle = flash;
+      this.ctx.beginPath();
+      this.ctx.arc(endX, endY, flashRadius, 0, Math.PI * 2);
+      this.ctx.fill();
+    }
   }
 
   private renderMouseGlow(): void {

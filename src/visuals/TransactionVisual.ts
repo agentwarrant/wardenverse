@@ -333,6 +333,17 @@ export class TransactionVisual {
   }
 
   /**
+   * Destroy the transaction immediately with explosion effect.
+   */
+  destroy(): void {
+    if (!this.exploded) {
+      this.exploded = true;
+      this.createExitExplosion();
+    }
+    this.life = 0;
+  }
+
+  /**
    * Get the transaction hash.
    */
   getHash(): string {
