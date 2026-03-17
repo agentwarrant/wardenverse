@@ -73,6 +73,7 @@ export class AgentTicker {
   private displayedAgents: Map<string, DisplayedAgent> = new Map();
   private isRunning: boolean = false;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
+  private animationStarted: boolean = false;
 
   constructor() {
     // Create main container
@@ -472,25 +473,30 @@ export class AgentTicker {
   }
 
   /**
-   * Render the ticker content - only ADD new agents, don't wipe existing ones
+   * Render the ticker content - rebuild with duplicated content for seamless scroll
    */
   private render(): void {
-    // Remove inactive agents from tracking (they'll scroll off naturally)
     const now = Date.now();
     const cutoff = now - this.activityWindowMs;
 
+    // Remove inactive agents from tracking
     for (const [id, displayed] of this.displayedAgents) {
       const agent = this.activeAgents.get(id);
       if (!agent || agent.lastActivity < cutoff) {
-        // Agent no longer active - remove from tracking
-        // The DOM element will scroll off naturally
         this.displayedAgents.delete(id);
       }
     }
 
     if (this.activeAgents.size === 0) {
-      console.log('AgentTicker: No active agents in window, ticker empty');
+      console.log('AgentTicker: No active agents in window');
+      this.tickerContent.innerHTML = '';
       this.tickerContent.style.animation = 'none';
+      this.animationStarted = false;
+      // Show waiting state
+      const waiting = document.createElement('span');
+      waiting.style.cssText = `color: rgba(255, 160, 100, 0.5); font-size: 9px; letter-spacing: 1px; padding-left: 20px;`;
+      waiting.textContent = 'Waiting for agent activity...';
+      this.tickerContent.appendChild(waiting);
       return;
     }
 
@@ -498,15 +504,21 @@ export class AgentTicker {
     const sortedAgents = Array.from(this.activeAgents.values())
       .sort((a, b) => b.lastActivity - a.lastActivity);
 
-    console.log('AgentTicker: Active agents:', sortedAgents.map(a => a.name));
+    console.log('AgentTicker: Rendering agents:', sortedAgents.map(a => a.name));
 
-    // Only ADD agents that aren't already displayed
-    let addedNew = false;
-    for (const agent of sortedAgents) {
-      if (!this.displayedAgents.has(agent.id)) {
-        console.log('AgentTicker: Adding new agent to ticker:', agent.name);
+    // Check if we need to rebuild (new agents or first render)
+    const needsRebuild = !this.animationStarted || 
+      sortedAgents.some(a => !this.displayedAgents.has(a.id));
 
-        // Create item and add to RIGHT side (end of ticker content)
+    if (needsRebuild) {
+      // Clear and rebuild with duplicated content for seamless scroll
+      this.tickerContent.innerHTML = '';
+      this.displayedAgents.clear();
+
+      // Create items - duplicate for seamless scrolling
+      const items = [...sortedAgents, ...sortedAgents];
+      
+      for (const agent of items) {
         const item = document.createElement('div');
         item.className = 'agent-ticker-item';
 
@@ -519,64 +531,26 @@ export class AgentTicker {
 
         item.appendChild(dot);
         item.appendChild(name);
-
-        // Append to ticker (right side)
         this.tickerContent.appendChild(item);
+      }
 
-        // Track this displayed agent
+      // Track displayed agents (only unique ones, not duplicates)
+      for (const agent of sortedAgents) {
         this.displayedAgents.set(agent.id, {
           id: agent.id,
           name: agent.name,
-          element: item,
+          element: this.tickerContent.children[0] as HTMLElement,
           addedAt: now
         });
-
-        addedNew = true;
       }
-    }
 
-    // If we have items and scrolling isn't started, start it
-    if (this.displayedAgents.size > 0 && this.tickerContent.style.animation === 'none') {
-      // Start scrolling animation
-      const contentWidth = this.tickerContent.scrollWidth;
+      // Start animation
+      const contentWidth = this.tickerContent.scrollWidth / 2; // Half because of duplicates
       if (contentWidth > 0) {
-        const duration = Math.max(15, Math.min(60, contentWidth / 30));
+        const duration = Math.max(20, Math.min(60, contentWidth / 25));
         this.tickerContent.style.animation = `scroll-ticker-left ${duration}s linear infinite`;
-      }
-    }
-
-    // If new items were added, recalculate animation
-    if (addedNew) {
-      // Check if we need more items for seamless scrolling
-      const contentWidth = this.tickerContent.scrollWidth;
-      const tickerWidth = this.tickerContent.parentElement?.clientWidth || 800;
-
-      if (contentWidth < tickerWidth * 2) {
-        // Need more content for seamless scroll - duplicate active agents
-        for (const agent of sortedAgents) {
-          if (this.displayedAgents.size >= 20) break; // Don't overfill
-
-          const item = document.createElement('div');
-          item.className = 'agent-ticker-item';
-
-          const dot = document.createElement('span');
-          dot.className = 'agent-ticker-dot';
-
-          const name = document.createElement('span');
-          name.className = 'agent-ticker-name';
-          name.textContent = agent.name;
-
-          item.appendChild(dot);
-          item.appendChild(name);
-          this.tickerContent.appendChild(item);
-        }
-      }
-
-      // Recalculate animation duration
-      const newContentWidth = this.tickerContent.scrollWidth;
-      if (newContentWidth > 0) {
-        const duration = Math.max(15, Math.min(60, newContentWidth / 30));
-        this.tickerContent.style.animationDuration = `${duration}s`;
+        this.animationStarted = true;
+        console.log('AgentTicker: Animation started, duration:', duration, 's');
       }
     }
   }
