@@ -1,8 +1,10 @@
 /**
  * AgentTicker - Scrolling ticker showing active agents with proof of inferences
  * Displays agent names in a horizontal scrolling bar at the bottom of the screen
- * Polls the Warden proof-of-inference API for real-time activity
+ * Listens to blockchain events from the ProofOfInference contract for real-time activity
  */
+
+import { JsonRpcProvider, Log } from 'ethers';
 
 // Main production agent IDs and their names
 const PRODUCTION_AGENTS: Record<string, string> = {
@@ -24,58 +26,35 @@ const PRODUCTION_AGENTS: Record<string, string> = {
   '10000012': 'Warden Agent'
 };
 
-interface ActivityItem {
-  agentId: number;
-  timestamp: string;
-  [key: string]: unknown;
-}
+// ProofOfInference contract address on Warden
+const PROOF_OF_INFERENCE_ADDRESS = '0x510b5Df4612380c6564320d7DbbfdBe72AC0d529';
 
-interface DashboardResponse {
-  state: {
-    activityItems: ActivityItem[];
-    agentsInfo: Record<string, {
-      agentId: number;
-      cardData: {
-        name: string;
-        description?: string;
-        iconUrl?: string;
-      };
-    }>;
-    stats: {
-      totalProofs: number;
-      activeAgents: number;
-      newProofs: number;
-      totalAgentRuns: number;
-    };
-  };
-}
+// Event signature for ProofOfInference events
+const PROOF_EVENT_SIGNATURE = '0x7dd42a288b7714ed6477ef2647c0f2d2a1b063619ea6c4761a4a5f01d3429609';
 
-interface ActiveAgent {
+interface AgentActivity {
   id: string;
   name: string;
   lastActivity: number;
-  proofCount: number;
-}
-
-interface DisplayedAgent {
-  id: string;
-  name: string;
-  element: HTMLElement;
-  addedAt: number;
+  txHash: string;
 }
 
 export class AgentTicker {
   private container: HTMLDivElement;
   private tickerContent: HTMLDivElement;
-  private pollingInterval: number = 8000; // Poll every 8 seconds
+  private rpcUrl: string;
+  private provider: JsonRpcProvider | null = null;
   private activityWindowMs: number = 180000; // Show agents active in last 3 minutes
-  private activeAgents: Map<string, ActiveAgent> = new Map();
-  private displayedAgents: Map<string, DisplayedAgent> = new Map();
+  private maxAgents: number = 15; // Maximum agents to show in ticker
+  private recentAgents: AgentActivity[] = []; // Ordered list of recent agents (newest first)
   private isRunning: boolean = false;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private animationStarted: boolean = false;
+  private lastBlockNumber: number = 0;
 
-  constructor() {
+  constructor(rpcUrl: string = 'https://evm.wardenprotocol.org') {
+    this.rpcUrl = rpcUrl;
+
     // Create main container
     this.container = document.createElement('div');
     this.container.id = 'agent-ticker-container';
@@ -320,23 +299,35 @@ export class AgentTicker {
   }
 
   /**
-   * Start polling the API for agent activity
+   * Start listening for blockchain events
    */
   async start(): Promise<void> {
     if (this.isRunning) return;
     this.isRunning = true;
 
-    // Initial fetch
-    await this.fetchActivity();
+    try {
+      // Initialize provider
+      this.provider = new JsonRpcProvider(this.rpcUrl);
+      
+      // Get current block number
+      this.lastBlockNumber = await this.provider.getBlockNumber();
+      console.log('AgentTicker: Starting from block', this.lastBlockNumber);
 
-    // Set up polling interval
-    this.pollTimer = setInterval(() => {
-      this.fetchActivity().catch(err => {
-        console.error('AgentTicker: Poll error:', err);
-      });
-    }, this.pollingInterval);
+      // Initial fetch of recent events
+      await this.fetchRecentEvents();
 
-    console.log('AgentTicker: Started polling for proof of inference activity');
+      // Set up polling for new events every 6 seconds (block time is ~6s)
+      this.pollTimer = setInterval(() => {
+        this.fetchRecentEvents().catch(err => {
+          console.error('AgentTicker: Poll error:', err);
+        });
+      }, 6000);
+
+      console.log('AgentTicker: Started listening for proof of inference events');
+    } catch (error) {
+      console.error('AgentTicker: Failed to start:', error);
+      this.showErrorState(error instanceof Error ? error.message : 'Connection failed');
+    }
   }
 
   /**
@@ -351,34 +342,108 @@ export class AgentTicker {
   }
 
   /**
-   * Fetch activity from the proof-of-inference API
+   * Fetch recent ProofOfInference events from blockchain
    */
-  private async fetchActivity(): Promise<void> {
+  private async fetchRecentEvents(): Promise<void> {
+    if (!this.provider) return;
+
     try {
-      // Always use proxy URL (Vite dev server proxy or Vercel rewrite)
-      const apiUrl = '/api/proofs/v1/dashboard';
+      const currentBlock = await this.provider.getBlockNumber();
       
-      console.log('AgentTicker: Fetching from', apiUrl);
-      
-      const response = await fetch(apiUrl, {
-        headers: {
-          'Accept': 'application/json',
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error(`API returned ${response.status}`);
+      // Only fetch new blocks since last check
+      if (currentBlock <= this.lastBlockNumber) {
+        return;
       }
 
-      const data: DashboardResponse = await response.json();
-      console.log('AgentTicker: Fetched data, activityItems:', data.state.activityItems.length);
+      // Limit to last 100 blocks to avoid RPC limits
+      const fromBlock = Math.max(this.lastBlockNumber + 1, currentBlock - 100);
+      
+      console.log('AgentTicker: Fetching events from block', fromBlock, 'to', currentBlock);
 
-      // Process activity items
-      this.processActivity(data);
+      // Query for ProofOfInference events
+      const filter = {
+        address: PROOF_OF_INFERENCE_ADDRESS,
+        fromBlock: fromBlock,
+        toBlock: currentBlock,
+        topics: [PROOF_EVENT_SIGNATURE]
+      };
+
+      const logs = await this.provider.getLogs(filter);
+      console.log('AgentTicker: Found', logs.length, 'proof events');
+
+      // Process each event
+      for (const log of logs) {
+        this.processEvent(log);
+      }
+
+      // Update last block number
+      this.lastBlockNumber = currentBlock;
+
+      // Update display
+      this.render();
+
     } catch (error) {
-      console.error('AgentTicker: Fetch error:', error);
-      // Show error state
-      this.showErrorState(error instanceof Error ? error.message : 'Connection failed');
+      console.error('AgentTicker: Error fetching events:', error);
+      // Don't show error state for temporary failures
+    }
+  }
+
+  /**
+   * Process a single ProofOfInference event
+   */
+  private processEvent(log: Log): void {
+    // Agent ID is in topics[2] (third topic)
+    // Format: 0x00000000000000000000000000000000000000000000000000000000000f4247
+    if (!log.topics || log.topics.length < 3) {
+      return;
+    }
+
+    try {
+      // Extract agent ID from topics[2]
+      const agentIdHex = log.topics[2];
+      const agentId = parseInt(agentIdHex, 16).toString();
+
+      // Only track known production agents
+      const agentName = PRODUCTION_AGENTS[agentId];
+      if (!agentName) {
+        // Unknown agent, skip
+        return;
+      }
+
+      const now = Date.now();
+      const txHash = log.transactionHash;
+
+      // Check if this agent is already in our recent list
+      const existingIndex = this.recentAgents.findIndex(a => a.id === agentId);
+      
+      if (existingIndex >= 0) {
+        // Remove from current position
+        const existing = this.recentAgents.splice(existingIndex, 1)[0];
+        // Update and add to front
+        this.recentAgents.unshift({
+          ...existing,
+          lastActivity: now,
+          txHash
+        });
+      } else {
+        // Add new agent to front
+        this.recentAgents.unshift({
+          id: agentId,
+          name: agentName,
+          lastActivity: now,
+          txHash
+        });
+      }
+
+      // Keep only the last maxAgents
+      if (this.recentAgents.length > this.maxAgents) {
+        this.recentAgents = this.recentAgents.slice(0, this.maxAgents);
+      }
+
+      console.log('AgentTicker: Agent', agentName, '(ID:', agentId, ') active - tx:', txHash.slice(0, 10) + '...');
+
+    } catch (error) {
+      console.error('AgentTicker: Error processing event:', error);
     }
   }
 
@@ -394,7 +459,7 @@ export class AgentTicker {
       letter-spacing: 1px;
       padding-left: 20px;
     `;
-    waiting.textContent = 'Connecting...';
+    waiting.textContent = 'Listening for agent activity...';
     this.tickerContent.appendChild(waiting);
     this.tickerContent.style.animation = 'none';
   }
@@ -417,141 +482,65 @@ export class AgentTicker {
   }
 
   /**
-   * Process activity items and update active agents
+   * Remove agents that are older than the activity window
    */
-  private processActivity(data: DashboardResponse): void {
-    const now = Date.now();
-    const cutoff = now - this.activityWindowMs;
-
-    // Clear agents that have gone inactive
-    for (const [id, agent] of this.activeAgents) {
-      if (agent.lastActivity < cutoff) {
-        this.activeAgents.delete(id);
-      }
-    }
-
-    // Process recent activity items
-    const recentItems = data.state.activityItems.filter(item => {
-      const timestamp = new Date(item.timestamp).getTime();
-      return timestamp >= cutoff;
-    });
-
-    console.log('AgentTicker: Recent items in window:', recentItems.length);
-
-    // Count production agent activity
-    let productionAgentCount = 0;
-    
-    for (const item of recentItems) {
-      const agentId = String(item.agentId);
-      
-      // Only track production agents
-      if (!PRODUCTION_AGENTS[agentId]) continue;
-      
-      productionAgentCount++;
-
-      const timestamp = new Date(item.timestamp).getTime();
-      const existing = this.activeAgents.get(agentId);
-      
-      if (existing) {
-        existing.lastActivity = Math.max(existing.lastActivity, timestamp);
-        existing.proofCount++;
-      } else {
-        this.activeAgents.set(agentId, {
-          id: agentId,
-          name: PRODUCTION_AGENTS[agentId],
-          lastActivity: timestamp,
-          proofCount: 1
-        });
-      }
-    }
-
-    console.log('AgentTicker: Production agent activity found:', productionAgentCount);
-    console.log('AgentTicker: Active agents:', Array.from(this.activeAgents.values()).map(a => a.name));
-
-    // Update the display
-    this.render();
+  private pruneInactiveAgents(): void {
+    const cutoff = Date.now() - this.activityWindowMs;
+    this.recentAgents = this.recentAgents.filter(agent => agent.lastActivity >= cutoff);
   }
 
   /**
    * Render the ticker content - rebuild with duplicated content for seamless scroll
    */
   private render(): void {
-    const now = Date.now();
-    const cutoff = now - this.activityWindowMs;
+    // Remove agents past the activity window
+    this.pruneInactiveAgents();
 
-    // Remove inactive agents from tracking
-    for (const [id, displayed] of this.displayedAgents) {
-      const agent = this.activeAgents.get(id);
-      if (!agent || agent.lastActivity < cutoff) {
-        this.displayedAgents.delete(id);
-      }
-    }
-
-    if (this.activeAgents.size === 0) {
-      console.log('AgentTicker: No active agents in window');
+    if (this.recentAgents.length === 0) {
+      console.log('AgentTicker: No recent agents');
       this.tickerContent.innerHTML = '';
       this.tickerContent.style.animation = 'none';
       this.animationStarted = false;
       // Show waiting state
       const waiting = document.createElement('span');
       waiting.style.cssText = `color: rgba(255, 160, 100, 0.5); font-size: 9px; letter-spacing: 1px; padding-left: 20px;`;
-      waiting.textContent = 'Waiting for agent activity...';
+      waiting.textContent = 'Listening for agent activity...';
       this.tickerContent.appendChild(waiting);
       return;
     }
 
-    // Sort agents by most recent activity
-    const sortedAgents = Array.from(this.activeAgents.values())
-      .sort((a, b) => b.lastActivity - a.lastActivity);
+    console.log('AgentTicker: Rendering agents:', this.recentAgents.map(a => a.name));
 
-    console.log('AgentTicker: Rendering agents:', sortedAgents.map(a => a.name));
+    // Always rebuild to show newest order
+    this.tickerContent.innerHTML = '';
+    this.animationStarted = false;
 
-    // Check if we need to rebuild (new agents or first render)
-    const needsRebuild = !this.animationStarted || 
-      sortedAgents.some(a => !this.displayedAgents.has(a.id));
+    // Create items - duplicate for seamless scrolling
+    const items = [...this.recentAgents, ...this.recentAgents];
+    
+    for (const agent of items) {
+      const item = document.createElement('div');
+      item.className = 'agent-ticker-item';
 
-    if (needsRebuild) {
-      // Clear and rebuild with duplicated content for seamless scroll
-      this.tickerContent.innerHTML = '';
-      this.displayedAgents.clear();
+      const dot = document.createElement('span');
+      dot.className = 'agent-ticker-dot';
 
-      // Create items - duplicate for seamless scrolling
-      const items = [...sortedAgents, ...sortedAgents];
-      
-      for (const agent of items) {
-        const item = document.createElement('div');
-        item.className = 'agent-ticker-item';
+      const name = document.createElement('span');
+      name.className = 'agent-ticker-name';
+      name.textContent = agent.name;
 
-        const dot = document.createElement('span');
-        dot.className = 'agent-ticker-dot';
+      item.appendChild(dot);
+      item.appendChild(name);
+      this.tickerContent.appendChild(item);
+    }
 
-        const name = document.createElement('span');
-        name.className = 'agent-ticker-name';
-        name.textContent = agent.name;
-
-        item.appendChild(dot);
-        item.appendChild(name);
-        this.tickerContent.appendChild(item);
-      }
-
-      // Track displayed agents (only unique ones, not duplicates)
-      for (const agent of sortedAgents) {
-        this.displayedAgents.set(agent.id, {
-          id: agent.id,
-          name: agent.name,
-          element: this.tickerContent.children[0] as HTMLElement,
-          addedAt: now
-        });
-      }
-
-      // Start animation
-      const contentWidth = this.tickerContent.scrollWidth / 2; // Half because of duplicates
-      if (contentWidth > 0) {
-        const duration = Math.max(20, Math.min(60, contentWidth / 25));
-        this.tickerContent.style.animation = `scroll-ticker-left ${duration}s linear infinite`;
-        this.animationStarted = true;
-        console.log('AgentTicker: Animation started, duration:', duration, 's');
-      }
+    // Start animation
+    const contentWidth = this.tickerContent.scrollWidth / 2; // Half because of duplicates
+    if (contentWidth > 0) {
+      const duration = Math.max(20, Math.min(60, contentWidth / 25));
+      this.tickerContent.style.animation = `scroll-ticker-left ${duration}s linear infinite`;
+      this.animationStarted = true;
+      console.log('AgentTicker: Animation started, duration:', duration, 's, agents:', this.recentAgents.length);
     }
   }
 
@@ -560,6 +549,9 @@ export class AgentTicker {
    */
   destroy(): void {
     this.stop();
+    if (this.provider) {
+      this.provider = null;
+    }
     if (this.container.parentNode) {
       this.container.parentNode.removeChild(this.container);
     }

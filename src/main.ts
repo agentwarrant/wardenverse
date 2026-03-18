@@ -80,7 +80,8 @@ async function main() {
   burnOMeter.start().catch(err => console.error('Failed to start Burn-O-Meter:', err));
 
   // Initialize the Agent Ticker (shows active agents with proof of inferences)
-  const agentTicker = new AgentTicker();
+  // Pass the RPC URL to listen for blockchain events directly
+  const agentTicker = new AgentTicker(defaultChain.rpcUrl);
   agentTicker.start().catch(err => console.error('Failed to start AgentTicker:', err));
   
   // Track transaction count for TPS calculation
