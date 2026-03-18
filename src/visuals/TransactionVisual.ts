@@ -293,18 +293,22 @@ export class TransactionVisual {
     const startX = hx - patternWidth / 2;
     const startY = hy - patternHeight / 2;
     
-    // Draw glow (smooth, for atmosphere)
-    const glowRadius = this.size * 3;
-    const glow = ctx.createRadialGradient(hx, hy, 0, hx, hy, glowRadius);
-    const baseColor = this.colors[1];
-    if (baseColor) {
-      glow.addColorStop(0, `rgba(${baseColor[0]}, ${baseColor[1]}, ${baseColor[2]}, 0.3)`);
-      glow.addColorStop(1, 'transparent');
-      ctx.fillStyle = glow;
-      ctx.beginPath();
-      ctx.arc(hx, hy, glowRadius, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    // Glow effect DISABLED to prevent resize ghosting artifacts
+    // The radial gradient creates semi-transparent bright pixels that leave
+    // traces during browser canvas scaling on window resize.
+    // 
+    // Original code (commented out):
+    // const glowRadius = this.size * 3;
+    // const glow = ctx.createRadialGradient(hx, hy, 0, hx, hy, glowRadius);
+    // const baseColor = this.colors[1];
+    // if (baseColor) {
+    //   glow.addColorStop(0, `rgba(${baseColor[0]}, ${baseColor[1]}, ${baseColor[2]}, 0.3)`);
+    //   glow.addColorStop(1, 'transparent');
+    //   ctx.fillStyle = glow;
+    //   ctx.beginPath();
+    //   ctx.arc(hx, hy, glowRadius, 0, Math.PI * 2);
+    //   ctx.fill();
+    // }
     
     // Draw pixel pattern
     for (let py = 0; py < 5; py++) {

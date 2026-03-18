@@ -376,18 +376,23 @@ export class BlockVisual {
     const px = Math.floor(this.x / PIXEL_SIZE) * PIXEL_SIZE + PIXEL_SIZE / 2;
     const py = Math.floor(this.y / PIXEL_SIZE) * PIXEL_SIZE + PIXEL_SIZE / 2;
     
-    // Draw glow (still smooth for atmosphere) - uses current chain colors
-    const glowSize = this.size * 2;
-    const glowAlpha = 0.15 + this.activityLevel * 0.15;
-    const glow = ctx.createRadialGradient(px, py, 0, px, py, glowSize);
-    const glowColor = currentChainColors.glow;
-    glow.addColorStop(0, `rgba(${glowColor[0]}, ${glowColor[1]}, ${glowColor[2]}, ${glowAlpha})`);
-    glow.addColorStop(0.5, `rgba(${glowColor[0]}, ${glowColor[1]}, ${glowColor[2]}, ${glowAlpha * 0.5})`);
-    glow.addColorStop(1, 'transparent');
-    ctx.fillStyle = glow;
-    ctx.beginPath();
-    ctx.arc(px, py, glowSize, 0, Math.PI * 2);
-    ctx.fill();
+    // Glow effect DISABLED to prevent resize ghosting artifacts
+    // The radial gradient creates semi-transparent bright pixels that leave
+    // traces during browser canvas scaling on window resize.
+    // TODO: Re-enable with double-buffering if glow is needed for visual effect
+    // 
+    // Original code (commented out):
+    // const glowSize = this.size * 2;
+    // const glowAlpha = 0.15 + this.activityLevel * 0.15;
+    // const glow = ctx.createRadialGradient(px, py, 0, px, py, glowSize);
+    // const glowColor = currentChainColors.glow;
+    // glow.addColorStop(0, `rgba(${glowColor[0]}, ${glowColor[1]}, ${glowColor[2]}, ${glowAlpha})`);
+    // glow.addColorStop(0.5, `rgba(${glowColor[0]}, ${glowColor[1]}, ${glowColor[2]}, ${glowAlpha * 0.5})`);
+    // glow.addColorStop(1, 'transparent');
+    // ctx.fillStyle = glow;
+    // ctx.beginPath();
+    // ctx.arc(px, py, glowSize, 0, Math.PI * 2);
+    // ctx.fill();
     
     // Draw pixel-art block pattern
     const startX = px - patternSize / 2;
