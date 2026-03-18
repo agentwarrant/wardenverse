@@ -547,6 +547,11 @@ async function main() {
 
     // Start watching for new blocks
     dataSource.onBlock((block) => {
+      // Skip block processing when tab is hidden to prevent memory accumulation
+      if (document.visibilityState !== 'visible') {
+        return;
+      }
+      
       engine.addBlock(block);
       blockCount++;
       
@@ -570,6 +575,13 @@ async function main() {
     });
 
     dataSource.onTransaction((tx) => {
+      // Skip transaction processing when tab is hidden to prevent memory accumulation
+      // The engine.addTransaction already checks visibility, but we also skip
+      // the scroll update and sound to avoid unnecessary work
+      if (document.visibilityState !== 'visible') {
+        return;
+      }
+      
       engine.addTransaction(tx);
       
       // Add to the tx hash scroll with full transaction data

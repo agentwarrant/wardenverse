@@ -207,6 +207,14 @@ export class Engine {
         console.log('[Engine] Tab visible again, forcing re-render');
         // Reset timing to avoid large delta time jump
         this.lastTime = performance.now();
+        // Clear any accumulated transactions that piled up while hidden
+        if (this.pendingTransactions.length > Engine.MAX_PENDING_TRANSACTIONS) {
+          console.log(`[Engine] Clearing ${this.pendingTransactions.length - Engine.MAX_PENDING_TRANSACTIONS} accumulated transactions`);
+          const toRemove = this.pendingTransactions.splice(0, this.pendingTransactions.length - Engine.MAX_PENDING_TRANSACTIONS);
+          for (const tx of toRemove) {
+            this.world.removeTransactionEntity(tx);
+          }
+        }
         // Notify the world about visibility change (for worker)
         this.world.handleVisibilityChange(true);
         // Force an immediate render
@@ -404,6 +412,8 @@ export class Engine {
 
   // Maximum number of blocks allowed on screen
   private static readonly MAX_BLOCKS = 80;
+  // Maximum number of pending transactions to prevent memory accumulation
+  private static readonly MAX_PENDING_TRANSACTIONS = 200;
 
   addBlock(block: Block): void {
     const visual = new BlockVisual(block, this.world, this.screenWidth, this.screenHeight);
@@ -427,6 +437,20 @@ export class Engine {
   }
 
   addTransaction(tx: Transaction): void {
+    // Skip adding transactions when tab is hidden to prevent memory accumulation
+    if (!this.isVisible) {
+      return;
+    }
+    
+    // Limit pending transactions to prevent memory issues
+    if (this.pendingTransactions.length >= Engine.MAX_PENDING_TRANSACTIONS) {
+      // Remove oldest transactions to make room
+      const toRemove = this.pendingTransactions.splice(0, this.pendingTransactions.length - Engine.MAX_PENDING_TRANSACTIONS + 1);
+      for (const oldTx of toRemove) {
+        this.world.removeTransactionEntity(oldTx);
+      }
+    }
+    
     const visual = new TransactionVisual(tx, this.world, this.screenWidth, this.screenHeight);
     this.pendingTransactions.push(visual);
     this.world.addTransactionEntity(visual);
@@ -522,6 +546,14 @@ export class Engine {
    */
   isLaserMode(): boolean {
     return this.laserMode;
+  }
+  
+  /**
+   * Check if the tab is currently visible.
+   * Used to skip UI updates when tab is hidden.
+   */
+  isVisible_(): boolean {
+    return this.isVisible;
   }
   
   /**
