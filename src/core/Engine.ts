@@ -9,6 +9,7 @@ import { PixelType } from './PixelTypes';
 import { BlockVisual } from '../visuals/BlockVisual';
 import { TransactionVisual } from '../visuals/TransactionVisual';
 import { InfoPopup, BlockInfo, TransactionInfo } from '../ui/InfoPopup';
+import { ScoreSystem, ScoreEvent, SCORE_VALUES } from './ScoreSystem';
 
 export interface Block {
   number: number;
@@ -60,16 +61,11 @@ export class Engine {
   private laserBeam: { startX: number; startY: number; endX: number; endY: number; progress: number; active: boolean } | null = null;
   private onLaserFire: (() => void) | null = null;
   
-  // Scoring system for laser mode
-  private laserScore: number = 0;
+  // Dopamine-inducing scoring system (90s arcade style!)
+  private scoreSystem: ScoreSystem;
   private scoreElement: HTMLElement | null = null;
-  
-  // Score values for different entity types
-  private static readonly SCORE_BLOCK = 5;
-  private static readonly SCORE_TRANSACTION = 10;
-  private static readonly SCORE_TOKEN = 20;
-  private static readonly SCORE_INFERENCE = 50;
-  private static readonly SCORE_CONTRACT = 100;
+  private multiplierElement: HTMLElement | null = null;
+  private comboTextElement: HTMLElement | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -81,6 +77,12 @@ export class Engine {
     this.blockCountElement = document.getElementById('block-count');
     this.txCountElement = document.getElementById('tx-count');
     this.scoreElement = document.getElementById('laser-score');
+    this.multiplierElement = document.getElementById('laser-multiplier');
+    this.comboTextElement = document.getElementById('combo-text');
+    
+    // Initialize dopamine-inducing score system
+    this.scoreSystem = new ScoreSystem();
+    this.scoreSystem.setElements(this.scoreElement, this.multiplierElement, this.comboTextElement);
     
     this.setupCanvas();
     this.infoPopup = new InfoPopup();
@@ -534,10 +536,9 @@ export class Engine {
    */
   setLaserMode(enabled: boolean): void {
     this.laserMode = enabled;
-    // Reset score when entering laser mode
+    // Reset score system when entering laser mode
     if (enabled) {
-      this.laserScore = 0;
-      this.updateScoreDisplay();
+      this.scoreSystem.reset();
     }
   }
 
@@ -560,24 +561,14 @@ export class Engine {
    * Get current laser score.
    */
   getLaserScore(): number {
-    return this.laserScore;
+    return this.scoreSystem.getScore();
   }
   
   /**
-   * Add points to the laser score and update display.
+   * Get current combo multiplier.
    */
-  private addScore(points: number): void {
-    this.laserScore += points;
-    this.updateScoreDisplay();
-  }
-  
-  /**
-   * Update the score display element.
-   */
-  private updateScoreDisplay(): void {
-    if (this.scoreElement) {
-      this.scoreElement.textContent = this.laserScore.toLocaleString();
-    }
+  getComboMultiplier(): number {
+    return this.scoreSystem.getComboInfo().multiplier;
   }
 
   /**
@@ -776,12 +767,17 @@ export class Engine {
     
     for (const block of this.blocks.values()) {
       if (block.containsPoint(targetX, targetY)) {
+        const pos = block.getPosition();
         block.destroy();
-        // Score for hitting a block
-        this.addScore(Engine.SCORE_BLOCK);
+        // Score for hitting a block with dopamine effects!
+        this.scoreSystem.addScore({
+          points: SCORE_VALUES.block,
+          x: pos.x,
+          y: pos.y,
+          type: 'block'
+        });
         hitSomething = true;
         // Create reduced explosion at block position
-        const pos = block.getPosition();
         this.createReducedExplosion(pos.x, pos.y);
         break;
       }
@@ -798,20 +794,18 @@ export class Engine {
         tx.destroy();
         hitSomething = true;
         
-        // Score based on transaction type
-        switch (txData.type) {
-          case 'inference':
-            this.addScore(Engine.SCORE_INFERENCE);
-            break;
-          case 'contract':
-            this.addScore(Engine.SCORE_CONTRACT);
-            break;
-          case 'token':
-            this.addScore(Engine.SCORE_TOKEN);
-            break;
-          default:
-            this.addScore(Engine.SCORE_TRANSACTION);
-        }
+        // Score based on transaction type with dopamine effects!
+        const scoreType: 'transaction' | 'token' | 'inference' | 'contract' = 
+          txData.type === 'inference' ? 'inference' :
+          txData.type === 'contract' ? 'contract' :
+          txData.type === 'token' ? 'token' : 'transaction';
+        
+        this.scoreSystem.addScore({
+          points: SCORE_VALUES[txData.type as keyof typeof SCORE_VALUES] || SCORE_VALUES.transaction,
+          x: pos.x,
+          y: pos.y,
+          type: scoreType
+        });
         
         this.createReducedExplosion(pos.x, pos.y);
         break;
@@ -858,6 +852,9 @@ export class Engine {
 
   private update(dt: number): void {
     this.world.update(dt);
+    
+    // Update score system (combos decay, popups animate)
+    this.scoreSystem.update(dt);
     
     // Update laser beam animation
     if (this.laserBeam && this.laserBeam.active) {
@@ -944,9 +941,19 @@ export class Engine {
     const width = this.screenWidth;
     const height = this.screenHeight;
     
+    // Get screen shake offset for dopamine feedback
+    const shake = this.scoreSystem.getScreenShake();
+    
+    this.ctx.save();
+    
+    // Apply screen shake
+    if (shake.x !== 0 || shake.y !== 0) {
+      this.ctx.translate(shake.x, shake.y);
+    }
+    
     // Dark space background - fill entire canvas first to clear any traces
     this.ctx.fillStyle = '#0a0a12';
-    this.ctx.fillRect(0, 0, width, height);
+    this.ctx.fillRect(-10, -10, width + 20, height + 20); // Extra for shake
     
     // Then draw gradient on top
     const bgGradient = this.ctx.createRadialGradient(
@@ -957,13 +964,12 @@ export class Engine {
     bgGradient.addColorStop(0.5, '#0a0a12');
     bgGradient.addColorStop(1, '#050508');
     this.ctx.fillStyle = bgGradient;
-    this.ctx.fillRect(0, 0, width, height);
+    this.ctx.fillRect(-10, -10, width + 20, height + 20);
     
     // Render pixel world (handles PIXEL_SIZE scaling)
     this.world.render(this.ctx, width, height);
     
     // Render entities with pixel-art style (quantized to PIXEL_SIZE)
-    this.ctx.save();
     // Disable anti-aliasing for pixel art look
     this.ctx.imageSmoothingEnabled = false;
     
@@ -975,13 +981,17 @@ export class Engine {
       tx.render(this.ctx);
     }
     
-    this.ctx.restore();
-    
     // Mouse glow
     this.renderMouseGlow();
     
     // Render laser beam if active
     this.renderLaserBeam();
+    
+    // Render score system overlays (popups, flash effects)
+    this.scoreSystem.render(this.ctx);
+    this.scoreSystem.renderFlash(this.ctx, width, height);
+    
+    this.ctx.restore();
   }
 
   private renderLaserBeam(): void {

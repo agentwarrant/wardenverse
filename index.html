@@ -690,6 +690,67 @@
         font-size: 8px !important;
       }
     }
+    
+    /* Dopamine-inducing score animations - 90s arcade style! */
+    .stat-multiplier {
+      font-size: 14px;
+      font-weight: bold;
+      color: #fbbf24;
+      margin-left: 8px;
+      text-shadow: 0 0 10px rgba(251, 191, 36, 0.8);
+      animation: pulse-multiplier 0.5s ease-in-out infinite alternate;
+    }
+    
+    @keyframes pulse-multiplier {
+      from {transform: scale(1); opacity: 1; }
+      to { transform: scale(1.1); opacity: 0.8; }
+    }
+    
+    .score-bump {
+      animation: bump-score 0.1s ease-out;
+    }
+    
+    @keyframes bump-score {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.3); }
+      100% { transform: scale(1); }
+    }
+    
+    .combo-text {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 48px;
+      font-weight: bold;
+      text-shadow: 0 0 20px currentColor, 0 0 40px currentColor;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 100;
+    }
+    
+    .combo-text:not(:empty) {
+      opacity: 1;
+    }
+    
+    .combo-flash {
+      animation: combo-pop 0.5s ease-out;
+    }
+    
+    @keyframes combo-pop {
+      0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+      50% { transform: translate(-50%, -50%) scale(1.3); opacity: 1; }
+      100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    }
+    
+    #laser-score-container {
+      position: relative;
+    }
+    
+    #laser-score {
+      transition: color 0.1s ease;
+    }
   </style>
 </head>
 <body>
@@ -725,8 +786,10 @@
         </div>
         <div class="stat" id="laser-score-container" style="display: none;">
           <span class="stat-value" id="laser-score">0</span>
+          <span class="stat-multiplier" id="laser-multiplier" style="display: none;"></span>
           <span class="stat-label">Score</span>
         </div>
+        <div class="combo-text" id="combo-text"></div>
       </div>
     </div>
     <div id="canvas-container">
