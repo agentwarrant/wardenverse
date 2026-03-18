@@ -13,8 +13,9 @@ type UpdateMessage = { type: 'update'; dt: number };
 type SetPixelMessage = { type: 'setPixel'; x: number; y: number; pixelType: PixelType };
 type ResizeMessage = { type: 'resize'; width: number; height: number };
 type ExplosionMessage = { type: 'explosion'; x: number; y: number; radius: number; intensity: number };
+type VisibilityMessage = { type: 'visibility'; visible: boolean };
 
-type WorkerMessage = InitMessage | UpdateMessage | SetPixelMessage | ResizeMessage | ExplosionMessage;
+type WorkerMessage = InitMessage | UpdateMessage | SetPixelMessage | ResizeMessage | ExplosionMessage | VisibilityMessage;
 
 type WorkerResponse =
   | { type: 'ready' }
@@ -28,6 +29,7 @@ let pixels: Uint8Array;
 let pixelData: Float32Array; // velocity, temperature, lifetime, etc.
 let pendingExplosions: Array<{ x: number; y: number; radius: number; intensity: number }> = [];
 let particleCount: number = 0; // Track active particles for cleanup
+let isVisible: boolean = true; // Track tab visibility
 
 function initialize(w: number, h: number): void {
   width = Math.floor(w);
@@ -503,8 +505,12 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
         break;
         
       case 'update':
-        updatePhysics(msg.dt);
-        self.postMessage({ type: 'pixels', data: pixels } as WorkerResponse);
+        // Skip physics updates when tab is hidden to prevent
+        // physics explosions from accumulated time deltas
+        if (isVisible) {
+          updatePhysics(msg.dt);
+          self.postMessage({ type: 'pixels', data: pixels } as WorkerResponse);
+        }
         break;
         
       case 'setPixel':
@@ -522,6 +528,15 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
           radius: msg.radius,
           intensity: msg.intensity
         });
+        break;
+        
+      case 'visibility':
+        isVisible = msg.visible;
+        if (isVisible) {
+          // When becoming visible again, clear any pending explosions
+          // that accumulated while hidden
+          pendingExplosions = [];
+        }
         break;
     }
   } catch (error) {

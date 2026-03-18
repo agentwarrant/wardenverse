@@ -86,6 +86,7 @@ export class Engine {
     this.infoPopup = new InfoPopup();
     this.setupEventListeners();
     this.setupVisibilityHandler();
+    this.setupContextLossHandler();
     this.initialized = true;
   }
 
@@ -206,12 +207,46 @@ export class Engine {
         console.log('[Engine] Tab visible again, forcing re-render');
         // Reset timing to avoid large delta time jump
         this.lastTime = performance.now();
+        // Notify the world about visibility change (for worker)
+        this.world.handleVisibilityChange(true);
         // Force an immediate render
         this.render();
+      } else if (!this.isVisible && wasHidden) {
+        // Tab is now hidden - notify the world
+        console.log('[Engine] Tab hidden, pausing updates');
+        this.world.handleVisibilityChange(false);
       }
     };
     
     document.addEventListener('visibilitychange', this.visibilityChangeHandler);
+  }
+
+  /**
+   * Set up canvas context loss handler to prevent black screen.
+   * When a tab is backgrounded for extended periods, browsers may reclaim
+   * GPU resources, causing the canvas context to be lost. This handler
+   * attempts to recover by forcing a full re-render.
+   */
+  private setupContextLossHandler(): void {
+    // Note: Canvas 2D contexts don't have webglcontextlost events,
+    // but we can handle visibility-related issues and resize events
+    // that may cause similar problems.
+    
+    // Handle window focus - sometimes canvas needs a repaint after alt-tab
+    window.addEventListener('focus', () => {
+      if (this.isVisible && this.initialized) {
+        // Force a repaint on focus
+        this.forceRender();
+      }
+    });
+    
+    // Handle pageshow event - triggered when page is restored from bfcache
+    window.addEventListener('pageshow', (event) => {
+      if (event.persisted) {
+        console.log('[Engine] Page restored from bfcache, forcing re-render');
+        this.forceRender();
+      }
+    });
   }
 
   private setupEventListeners(): void {
@@ -761,8 +796,12 @@ export class Engine {
     if (!this.running) return;
 
     const now = performance.now();
-    const dt = (now - this.lastTime) / 1000;
+    let dt = (now - this.lastTime) / 1000;
     this.lastTime = now;
+
+    // Clamp delta time to prevent physics explosions after tab switches
+    // Maximum 100ms (10 FPS equivalent) to prevent instability
+    dt = Math.min(dt, 0.1);
 
     // Skip updates and rendering when tab is hidden
     // This prevents physics issues from large time deltas

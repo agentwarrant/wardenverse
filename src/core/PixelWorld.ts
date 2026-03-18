@@ -208,9 +208,13 @@ export class PixelWorld {
       this.lastFpsUpdate = now;
     }
     
+    // Clamp dt to prevent physics explosions after tab switches
+    // Maximum 100ms (10 FPS equivalent) to prevent instability
+    const clampedDt = Math.min(dt, 0.1);
+    
     // Use worker for physics if available
     if (this.worker && this.workerReady) {
-      this.worker.postMessage({ type: 'update', dt });
+      this.worker.postMessage({ type: 'update', dt: clampedDt });
     }
     
     // Update entities (blocks only - transactions are updated by Engine)
@@ -395,5 +399,16 @@ export class PixelWorld {
     // Clear block and transaction entities
     this.blockEntities = [];
     this.transactionEntities = [];
+  }
+
+  /**
+   * Handle visibility changes (tab hidden/visible).
+   * Notifies the physics worker to pause/resume and prevent
+   * physics explosions from large time deltas.
+   */
+  handleVisibilityChange(isVisible: boolean): void {
+    if (this.worker && this.workerReady) {
+      this.worker.postMessage({ type: 'visibility', visible: isVisible });
+    }
   }
 }
