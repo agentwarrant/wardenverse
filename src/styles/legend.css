@@ -271,6 +271,11 @@
   animation-delay: 1.2s;
 }
 
+.legend-sprite.halo-sprite {
+  animation: pixel-sprite-pulse 2s ease-in-out infinite;
+  animation-delay: 1.5s;
+}
+
 /* Legend text with pixel font */
 .legend-text {
   font-family: 'Press Start 2P', monospace;

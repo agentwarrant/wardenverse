@@ -27,7 +27,7 @@ export interface ScoreEvent {
   points: number;
   x: number;
   y: number;
-  type: 'block' | 'transaction' | 'token' | 'inference' | 'contract';
+  type: 'block' | 'transaction' | 'token' | 'inference' | 'contract' | 'halo';
 }
 
 // Score values for different entity types
@@ -36,6 +36,7 @@ export const SCORE_VALUES = {
   transaction: 10,
   token: 20,
   inference: 50,
+  halo: 75,
   contract: 100,
 };
 
@@ -203,6 +204,7 @@ export class ScoreSystem {
     switch (type) {
       case 'contract': return '#ef4444'; // Red - highest value
       case 'inference': return '#a855f7'; // Purple
+      case 'halo': return '#00b4e6'; // Halo cyan
       case 'token': return '#34d399'; // Green
       case 'transaction': return '#60a5fa'; // Blue
       default: return '#fbbf24'; // Yellow

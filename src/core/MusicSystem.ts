@@ -4,7 +4,7 @@
  * No continuous melody - sounds emerge from on-chain activity
  */
 
-export type TransactionType = 'transfer' | 'contract' | 'token' | 'inference';
+export type TransactionType = 'transfer' | 'contract' | 'token' | 'inference' | 'halo';
 
 interface DrumSound {
   type: 'kick' | 'snare' | 'hihat' | 'clap';
@@ -76,6 +76,7 @@ export class MusicSystem {
   private readonly CONTRACT_NOTES = [130.81, 146.83, 164.81]; // C3 (bass, lower)
   private readonly TOKEN_NOTES = [392.00, 440.00, 493.88]; // Mid range
   private readonly INFERENCE_NOTES = [196.00, 220.00, 246.94]; // G3-Bb3 (mysterious)
+  private readonly HALO_NOTES = [659.25, 783.99, 987.77]; // E5-B5 (bright, bell-like)
 
   constructor() {}
 
@@ -433,6 +434,12 @@ export class MusicSystem {
         oscType = 'square';
         decay = 0.5;
         break;
+      case 'halo':
+        // Halo vault events get a bright, ringing bell tone
+        notes = this.HALO_NOTES;
+        oscType = 'triangle';
+        decay = 0.6;
+        break;
       default:
         notes = this.TRANSFER_NOTES;
         oscType = 'sine';
@@ -448,7 +455,7 @@ export class MusicSystem {
       attack: 0.01,
       decay,
       release: 0.1,
-      filterFreq: type === 'inference' ? 800 : 2000
+      filterFreq: type === 'inference' ? 800 : type === 'halo' ? 3200 : 2000
     });
   }
 

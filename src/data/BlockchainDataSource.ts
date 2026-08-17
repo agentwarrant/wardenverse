@@ -6,6 +6,7 @@
 
 import { JsonRpcProvider, Block as EthersBlock, TransactionResponse } from 'ethers';
 import { Chain, CHAINS, DEFAULT_CHAIN, getChainById } from '../core/Chains';
+import type { HaloMeta } from '../core/Halo';
 
 export interface Block {
   number: number;
@@ -17,7 +18,7 @@ export interface Block {
   parentHash: string;
 }
 
-export type TransactionType = 'transfer' | 'contract' | 'token' | 'inference';
+export type TransactionType = 'transfer' | 'contract' | 'token' | 'inference' | 'halo';
 
 export interface Transaction {
   hash: string;
@@ -27,6 +28,8 @@ export interface Transaction {
   value: string;
   gasPrice: string;
   type: TransactionType;
+  /** Present only on 'halo' transactions - see HaloDataSource. */
+  halo?: HaloMeta;
 }
 
 export interface ChainStats {

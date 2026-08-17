@@ -5,11 +5,12 @@
  */
 
 import type { Transaction } from '../data/BlockchainDataSource';
+import type { HaloMeta } from '../core/Halo';
 import { InfoPopup } from './InfoPopup';
 
 export interface TxHashEntry {
   hash: string;
-  type: 'transfer' | 'contract' | 'token' | 'inference';
+  type: 'transfer' | 'contract' | 'token' | 'inference' | 'halo';
   timestamp: number;
   blockNumber: number;
   from: string;
@@ -17,6 +18,7 @@ export interface TxHashEntry {
   value: string;
   gasPrice: string;
   isNew: boolean; // Track new entries for animation
+  halo?: HaloMeta; // Halo vault detail, for 'halo' entries
 }
 
 // Pixel-art sprite SVGs for transaction types
@@ -27,7 +29,10 @@ const TYPE_SPRITES = {
   
   contract: `<svg width="16" height="16" viewBox="0 0 8 8" style="image-rendering: pixelated;"><rect x="3" y="0" width="2" height="1" fill="#f472b6"/><rect x="2" y="1" width="1" height="1" fill="#f472b6"/><rect x="3" y="1" width="2" height="1" fill="#ec4899"/><rect x="5" y="1" width="1" height="1" fill="#f472b6"/><rect x="2" y="2" width="4" height="1" fill="#f9a8d4"/><rect x="3" y="3" width="2" height="1" fill="#ffffff"/><rect x="2" y="4" width="4" height="1" fill="#f9a8d4"/><rect x="3" y="5" width="2" height="1" fill="#ec4899"/></svg>`,
   
-  inference: `<svg width="16" height="16" viewBox="0 0 8 8" style="image-rendering: pixelated;"><rect x="3" y="0" width="2" height="1" fill="#a78bfa"/><rect x="2" y="1" width="4" height="1" fill="#c4b5fd"/><rect x="1" y="2" width="6" height="1" fill="#a78bfa"/><rect x="2" y="3" width="4" height="1" fill="#ddd6fe"/><rect x="1" y="4" width="6" height="1" fill="#a78bfa"/><rect x="2" y="5" width="4" height="1" fill="#c4b5fd"/><rect x="3" y="6" width="2" height="1" fill="#a78bfa"/></svg>`
+  inference: `<svg width="16" height="16" viewBox="0 0 8 8" style="image-rendering: pixelated;"><rect x="3" y="0" width="2" height="1" fill="#a78bfa"/><rect x="2" y="1" width="4" height="1" fill="#c4b5fd"/><rect x="1" y="2" width="6" height="1" fill="#a78bfa"/><rect x="2" y="3" width="4" height="1" fill="#ddd6fe"/><rect x="1" y="4" width="6" height="1" fill="#a78bfa"/><rect x="2" y="5" width="4" height="1" fill="#c4b5fd"/><rect x="3" y="6" width="2" height="1" fill="#a78bfa"/></svg>`,
+
+  // Halo mark: a cyan ring
+  halo: `<svg width="16" height="16" viewBox="0 0 8 8" style="image-rendering: pixelated;"><rect x="2" y="1" width="4" height="1" fill="#00b4e6"/><rect x="1" y="2" width="1" height="1" fill="#00b4e6"/><rect x="6" y="2" width="1" height="1" fill="#00b4e6"/><rect x="1" y="3" width="1" height="1" fill="#5bb0ee"/><rect x="3" y="3" width="2" height="1" fill="#1c64f2"/><rect x="6" y="3" width="1" height="1" fill="#5bb0ee"/><rect x="1" y="4" width="1" height="1" fill="#5bb0ee"/><rect x="3" y="4" width="2" height="1" fill="#1c64f2"/><rect x="6" y="4" width="1" height="1" fill="#5bb0ee"/><rect x="1" y="5" width="1" height="1" fill="#00b4e6"/><rect x="6" y="5" width="1" height="1" fill="#00b4e6"/><rect x="2" y="6" width="4" height="1" fill="#00b4e6"/></svg>`
 };
 
 export class TxHashScroll {
@@ -262,11 +267,12 @@ export class TxHashScroll {
     
     if (existingIndex >= 0) {
       // Already exists - update to show the primary type if it's more significant
-      // Priority: inference > token > contract > transfer
-      const priority: Record<string, number> = { inference: 4, token: 3, contract: 2, transfer: 1 };
+      // Priority: halo > inference > token > contract > transfer
+      const priority: Record<string, number> = { halo: 5, inference: 4, token: 3, contract: 2, transfer: 1 };
       const existingType = this.entries[existingIndex].type;
       if (priority[tx.type] > priority[existingType]) {
         this.entries[existingIndex].type = tx.type;
+        if (tx.halo) this.entries[existingIndex].halo = tx.halo;
       }
       return; // Don't add duplicate entry
     }
@@ -281,7 +287,8 @@ export class TxHashScroll {
       to: tx.to,
       value: tx.value,
       gasPrice: tx.gasPrice,
-      isNew: true // Mark as new for animation
+      isNew: true, // Mark as new for animation
+      halo: tx.halo
     });
     
     // Mark all other entries as not new
@@ -305,6 +312,8 @@ export class TxHashScroll {
         return '#f472b6'; // pink
       case 'inference':
         return '#a78bfa'; // purple
+      case 'halo':
+        return '#00b4e6'; // Halo cyan
       default:
         return '#60a5fa'; // blue
     }
@@ -318,6 +327,8 @@ export class TxHashScroll {
         return 'rgba(244, 114, 182, 0.6)';
       case 'inference':
         return 'rgba(167, 139, 250, 0.6)';
+      case 'halo':
+        return 'rgba(0, 180, 230, 0.6)';
       default:
         return 'rgba(96, 165, 250, 0.6)';
     }
@@ -411,7 +422,8 @@ export class TxHashScroll {
           to: entry.to,
           value: entry.value,
           gasPrice: entry.gasPrice,
-          type: entry.type
+          type: entry.type,
+          halo: entry.halo
         });
       };
       

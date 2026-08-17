@@ -10,6 +10,7 @@ import { BlockVisual } from '../visuals/BlockVisual';
 import { TransactionVisual } from '../visuals/TransactionVisual';
 import { InfoPopup, BlockInfo, TransactionInfo } from '../ui/InfoPopup';
 import { ScoreSystem, ScoreEvent, SCORE_VALUES } from './ScoreSystem';
+import type { Transaction } from '../data/BlockchainDataSource';
 
 export interface Block {
   number: number;
@@ -21,15 +22,9 @@ export interface Block {
   parentHash?: string;
 }
 
-export interface Transaction {
-  hash: string;
-  blockNumber: number;
-  from: string;
-  to: string | null;
-  value: string;
-  gasPrice: string;
-  type: 'transfer' | 'contract' | 'token' | 'inference';
-}
+// Transactions are shaped by the data sources (Warden chain + Halo vault);
+// re-exported here so callers of the engine can use one type.
+export type { Transaction } from '../data/BlockchainDataSource';
 
 export class Engine {
   private canvas: HTMLCanvasElement;
@@ -313,7 +308,8 @@ export class Engine {
             to: txData.to,
             value: txData.value,
             gasPrice: txData.gasPrice,
-            type: txData.type
+            type: txData.type,
+            halo: txData.halo
           });
           return;
         }
@@ -795,8 +791,9 @@ export class Engine {
         hitSomething = true;
         
         // Score based on transaction type with dopamine effects!
-        const scoreType: 'transaction' | 'token' | 'inference' | 'contract' = 
+        const scoreType: 'transaction' | 'token' | 'inference' | 'contract' | 'halo' =
           txData.type === 'inference' ? 'inference' :
+          txData.type === 'halo' ? 'halo' :
           txData.type === 'contract' ? 'contract' :
           txData.type === 'token' ? 'token' : 'transaction';
         

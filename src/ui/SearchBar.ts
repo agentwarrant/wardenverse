@@ -442,13 +442,15 @@ export class SearchBar {
         transfer: '#60a5fa',
         token: '#34d399',
         contract: '#f472b6',
-        inference: '#ff503c'
+        inference: '#ff503c',
+        halo: '#00b4e6'
       };
       const typeLabels: { [key: string]: string } = {
         transfer: 'Transfer',
         token: 'Token Transfer',
         contract: 'Contract Call',
-        inference: 'Proof of Inference'
+        inference: 'Proof of Inference',
+        halo: 'Halo Vault'
       };
       const color = typeColors[data.type] || '#60a5fa';
       const label = typeLabels[data.type] || 'Transaction';
@@ -492,7 +494,7 @@ export class SearchBar {
     this.hideResults();
     
     if (result.type === 'transaction' && result.hash) {
-      const data = result.data as { hash: string; blockNumber: number; from: string; to: string | null; value: string; gasPrice: string; type: 'transfer' | 'contract' | 'token' | 'inference' };
+      const data = result.data as { hash: string; blockNumber: number; from: string; to: string | null; value: string; gasPrice: string; type: 'transfer' | 'contract' | 'token' | 'inference' | 'halo' };
       this.infoPopup.showTransaction({
         hash: data.hash,
         blockNumber: data.blockNumber,

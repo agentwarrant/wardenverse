@@ -26,6 +26,8 @@ export enum PixelType {
   VOID = 18,
   // Proof Of Inference - big red explosion
   INFERENCE = 19,
+  // Halo vault activity - cyan halo ring
+  HALO = 20,
 }
 
 export interface PixelProperties {
@@ -390,4 +392,24 @@ export const PIXEL_PROPERTIES: Record<PixelType, PixelProperties | null> = {
     },
     emissive: true,
     flickerRate: 0.7,
-  },};
+  },
+
+  [PixelType.HALO]: {
+    color: [0, 180, 230, 255], // Halo cyan
+    gravity: -0.15, // Drifts upward like a settling ring
+    spread: 0.3,
+    lifetime: 2200,
+    glow: true,
+    glowIntensity: 1.3,
+    particleSize: 2.4,
+    trail: true,
+    trailType: PixelType.ELECTRIC,
+    explodeOnDeath: PixelType.SPARK,
+    explodeCount: 3,
+    interactions: {
+      [PixelType.DUST]: PixelType.ELECTRIC,
+    },
+    emissive: true,
+    flickerRate: 0.35,
+  },
+};

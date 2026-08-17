@@ -6,6 +6,7 @@
 import { Engine } from './core/Engine';
 import { BlockchainDataSource } from './data/BlockchainDataSource';
 import { TransactionType } from './data/BlockchainDataSource';
+import { HaloDataSource } from './data/HaloDataSource';
 import { MusicSystem } from './core/MusicSystem';
 import { TxHashScroll } from './ui/TxHashScroll';
 import { BurnOMeter } from './ui/BurnOMeter';
@@ -83,7 +84,31 @@ async function main() {
   // Pass the RPC URL to listen for blockchain events directly
   const agentTicker = new AgentTicker(defaultChain.rpcUrl);
   agentTicker.start().catch(err => console.error('Failed to start AgentTicker:', err));
-  
+
+  // Initialize the Halo vault feed (Base) - every interaction with the Halo
+  // inference-marketplace vault arrives as a cyan comet alongside Warden traffic.
+  // It runs independently of the selected chain, like the AgentTicker.
+  const haloVolumeEl = document.getElementById('halo-volume');
+  const haloSource = new HaloDataSource();
+
+  haloSource.onTransaction((tx) => {
+    // Same visibility guard as the Warden feed - no work while hidden
+    if (document.visibilityState !== 'visible') return;
+
+    engine.addTransaction(tx);
+    txHashScroll.addTransaction(tx);
+
+    if (musicEnabled) {
+      musicSystem.playTransactionSound('halo');
+    }
+  });
+
+  haloSource.onStats((stats) => {
+    if (haloVolumeEl) haloVolumeEl.textContent = stats.volumeUsdc;
+  });
+
+  haloSource.start().catch(err => console.error('Failed to start Halo vault feed:', err));
+
   // Track transaction count for TPS calculation
   let txCount = 0;
   let localTxCount = 0; // Transactions counted locally since page load
