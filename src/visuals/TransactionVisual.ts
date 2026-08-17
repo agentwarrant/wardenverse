@@ -49,6 +49,13 @@ const COMET_COLORS: { [type: string]: { [key: number]: [number, number, number] 
     2: [255, 120, 80],   // mid red-orange
     3: [255, 160, 100],  // bright orange
     4: [255, 255, 200],  // bright yellow-white core
+  },
+  halo: {
+    0: null,
+    1: [28, 100, 242],   // outer Halo blue
+    2: [0, 180, 230],    // Halo cyan
+    3: [91, 176, 238],   // ice blue
+    4: [255, 255, 255],  // white core
   }
 };
 
@@ -79,6 +86,15 @@ export class TransactionVisual {
     if (tx.type === 'inference') {
       this.size = 6;      // Largest comet - big red explosion
       this.intensity = 2; // Highest intensity
+    } else if (tx.type === 'halo') {
+      // Halo vault events scale with the USDC amount they move, so a large
+      // inference payment reads bigger than a session-key update. Payments are
+      // micro-amounts (a fraction of a cent up to a few dollars), so the scale
+      // is anchored at milli-USDC rather than whole dollars.
+      const usdc = tx.halo?.amountRaw ? Number(BigInt(tx.halo.amountRaw)) / 1e6 : 0;
+      const magnitude = usdc > 0 ? Math.min(3, Math.log10(usdc * 1000 + 1)) : 0; // 0..3
+      this.size = Math.round(4 + magnitude); // 4..7
+      this.intensity = 1.3 * (tx.halo?.weight ?? 1);
     } else if (tx.type === 'token') {
       this.size = 5;
       this.intensity = 1.5;
@@ -155,7 +171,7 @@ export class TransactionVisual {
     }
     
     // Limit trail
-    const maxTrail = this.tx.type === 'token' ? 15 : this.tx.type === 'contract' ? 12 : 10;
+    const maxTrail = this.tx.type === 'token' ? 15 : this.tx.type === 'halo' ? 14 : this.tx.type === 'contract' ? 12 : 10;
     while (this.trail.length > maxTrail) {
       this.trail.shift();
     }
@@ -171,7 +187,9 @@ export class TransactionVisual {
     // Proof of inference: dramatic fire and plasma trail
     const types = this.tx.type === 'inference'
       ? [PixelType.FIRE, PixelType.FIRE, PixelType.PLASMA, PixelType.SPARK]
-      : this.tx.type === 'token' 
+      : this.tx.type === 'halo'
+      ? [PixelType.HALO, PixelType.ELECTRIC, PixelType.SPARK]
+      : this.tx.type === 'token'
       ? [PixelType.SPARK] // Reduced: only spark, no TOKEN particles during flight
       : this.tx.type === 'contract'
       ? [PixelType.PLASMA, PixelType.ELECTRIC]
@@ -199,8 +217,33 @@ export class TransactionVisual {
   }
 
   private createExitExplosion(): void {
-    const radius = this.tx.type === 'inference' ? 18 : this.tx.type === 'token' ? 10 : this.tx.type === 'contract' ? 14 : 10;
+    const radius = this.tx.type === 'inference' ? 18 : this.tx.type === 'halo' ? 14 : this.tx.type === 'token' ? 10 : this.tx.type === 'contract' ? 14 : 10;
     this.world.createExplosion(this.x, this.y, radius, this.intensity);
+
+    // Halo vault activity: a cyan ring - the Halo mark - instead of a scatter
+    if (this.tx.type === 'halo') {
+      const ringRadius = 10 + this.size * 2;
+      const points = 20;
+      for (let i = 0; i < points; i++) {
+        const angle = (i / points) * Math.PI * 2;
+        this.world.setPixelScreen(
+          this.x + Math.cos(angle) * ringRadius,
+          this.y + Math.sin(angle) * ringRadius,
+          PixelType.HALO
+        );
+      }
+      // Inner sparks give the ring a lit centre
+      for (let i = 0; i < 5; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.random() * ringRadius * 0.5;
+        this.world.setPixelScreen(
+          this.x + Math.cos(angle) * dist,
+          this.y + Math.sin(angle) * dist,
+          PixelType.SPARK
+        );
+      }
+      return;
+    }
     
     // Proof of inference: big red explosion with fire and plasma
     if (this.tx.type === 'inference') {

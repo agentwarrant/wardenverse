@@ -43,7 +43,9 @@ When developing, always use `npm run dev` - it automatically:
 - **Frontend:** TypeScript + Vite
 - **Rendering:** HTML5 Canvas with custom pixel rendering
 - **Physics:** Custom pixel physics simulation (falling sand style)
-- **Data Source:** Warden EVM RPC (`https://evm.wardenprotocol.org`)
+- **Data Sources:**
+  - Warden EVM RPC (`https://evm.wardenprotocol.org`) — blocks and transactions
+  - Base RPC — Halo vault activity (see [Halo Vault](#halo-vault))
 
 ## Visual Style (Noita-Inspired)
 
@@ -84,6 +86,7 @@ The simulation includes 19 distinct pixel types, each with unique physics proper
   - **Contract calls** → Pink with plasma/lightning effects
   - **Regular transfers** → Blue with electric glow
   - **Proof of Inference** → Dramatic red fire/explosion effects, the largest and most intense comets
+  - **Halo Vault** → Cyan comets that leave a Halo ring behind them, sized by the USDC paid
   
 ### Proof of Inference
 
@@ -97,6 +100,31 @@ Developers can generate the same hash offchain and match it against the onchain 
 - Trustless verification of prompt-response pairs
 
 In Wardenverse, Proof of Inference transactions are visualized as dramatic red comets with fire trails and plasma explosions — the most visually striking transaction type, representing the computational energy of AI operations on the network.
+
+### Halo Vault
+
+**Halo** is a peer-to-peer inference marketplace on Base. Its vault escrows the USDC that pays for inference: a consumer funds credit, an operator (inference provider) reserves against that credit for a session, and redeems payment for the inferences it served. Unspent reservations expire and are released back to the consumer.
+
+Wardenverse watches the vault at [`0x3907f660b257560883e891fbbb9f997eff70e40e`](https://basescan.org/address/0x3907f660b257560883e891fbbb9f997eff70e40e) and renders every interaction with it as a cyan comet, alongside Warden chain activity. The feed runs independently of the selected chain.
+
+**How it works:** every state-changing call to the vault emits an event, so the app polls the contract's logs (`eth_getLogs` filtered by address) every 8 seconds rather than walking Base blocks — Base produces ~2s blocks with far too much unrelated traffic to visualize. Events are released one at a time so a busy block arrives as a stream of comets rather than a burst.
+
+Vault events and how they read in the UI:
+
+| Event | Label | Meaning |
+|---|---|---|
+| `Deposited` | Inference Credit Funded | A consumer tops up their USDC credit |
+| `Reserved` | Inference Reserved | An operator locks credit for a session |
+| `Redeemed` | Inference Paid | An operator is paid for inferences served |
+| `ReleasedExpired` | Reserve Released | An unused reservation expires back to the consumer |
+| `Withdrawn` | Credit Withdrawn | A consumer pulls USDC out of the vault |
+| `SessionKeySet` | Session Key Set | A consumer authorizes a session key |
+
+Fee, pause, and admin events are shown too; anything the app doesn't model still appears as generic "Vault Activity" so no real interaction is silently dropped.
+
+The **HALO PAID** header stat totals the USDC settled to operators (`Redeemed`) since page load. Reservations and releases are excluded — they move the same USDC twice.
+
+**Configuration:** the app rotates through public Base RPC endpoints. To use a dedicated endpoint, set `VITE_BASE_RPC_URL` in the environment before building.
   
 - **Particle Physics**
   - Fire spreads to gas, creating explosions

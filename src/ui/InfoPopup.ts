@@ -3,6 +3,8 @@
  * RPG dialog box aesthetic with pixel-art borders and animations
  */
 
+import { HALO_EXPLORER_URL, HALO_VAULT_ADDRESS, type HaloMeta } from '../core/Halo';
+
 export interface BlockInfo {
   number: number;
   hash: string;
@@ -20,7 +22,9 @@ export interface TransactionInfo {
   to: string | null;
   value: string;
   gasPrice: string;
-  type: 'transfer' | 'contract' | 'token' | 'inference';
+  type: 'transfer' | 'contract' | 'token' | 'inference' | 'halo';
+  /** Present only on Halo vault events. */
+  halo?: HaloMeta;
 }
 
 type InfoType = 'block' | 'transaction';
@@ -87,6 +91,19 @@ const TRANSACTION_ICONS: { [key: string]: string } = {
       <rect x="7" y="13" width="2" height="2" fill="#ffa064"/>
       <rect x="2" y="5" width="2" height="2" fill="#ffa064"/>
       <rect x="12" y="5" width="2" height="2" fill="#ffa064"/>
+    </svg>
+  `,
+  halo: `
+    <svg viewBox="0 0 16 16" width="16" height="16" style="image-rendering: pixelated;">
+      <rect x="5" y="2" width="6" height="2" fill="#00b4e6"/>
+      <rect x="3" y="4" width="2" height="2" fill="#00b4e6"/>
+      <rect x="11" y="4" width="2" height="2" fill="#00b4e6"/>
+      <rect x="2" y="6" width="2" height="4" fill="#5bb0ee"/>
+      <rect x="12" y="6" width="2" height="4" fill="#5bb0ee"/>
+      <rect x="6" y="6" width="4" height="4" fill="#1c64f2"/>
+      <rect x="3" y="10" width="2" height="2" fill="#00b4e6"/>
+      <rect x="11" y="10" width="2" height="2" fill="#00b4e6"/>
+      <rect x="5" y="12" width="6" height="2" fill="#00b4e6"/>
     </svg>
   `
 };
@@ -604,25 +621,34 @@ export class InfoPopup {
       transfer: { color: '#60a5fa', label: 'Native Transfer' },
       token: { color: '#34d399', label: 'Token Transfer' },
       contract: { color: '#f472b6', label: 'Contract Call' },
-      inference: { color: '#ff503c', label: 'Proof of Inference' }
+      inference: { color: '#ff503c', label: 'Proof of Inference' },
+      halo: { color: '#00b4e6', label: 'Halo Vault' }
     };
     
+    const isHalo = tx.type === 'halo';
     const config = typeConfig[tx.type] || { color: '#60a5fa', label: tx.type };
+    // Halo events name themselves ("Inference Paid", "Reserve Released", ...)
+    const label = isHalo && tx.halo ? tx.halo.label : config.label;
     const icon = TRANSACTION_ICONS[tx.type] || TRANSACTION_ICONS.transfer;
-
-    const valueWei = BigInt(tx.value);
-    const valueWARD = Number(valueWei) / 1e18;
+    // Halo lives on Base, everything else on the Warden explorer
+    const explorer = isHalo ? HALO_EXPLORER_URL : this.explorerBaseUrl;
 
     let valueDisplay: string;
-    if (valueWei === 0n) {
-      valueDisplay = '0 WARD';
-    } else if (valueWARD >= 0.000001) {
-      // Show WARD for amounts >= 1 uWARD (microWARD)
-      valueDisplay = `${valueWARD.toFixed(6)} WARD`;
+    if (isHalo) {
+      valueDisplay = tx.halo?.amountUsdc ? `${tx.halo.amountUsdc} USDC` : '—';
     } else {
-      // Show uWARD for small amounts to avoid "0.000000 WARD"
-      const valueuWARD = Number(valueWei) / 1e12; // Convert weiWARD to microWARD
-      valueDisplay = `${valueuWARD.toFixed(2)} uWARD`;
+      const valueWei = BigInt(tx.value);
+      const valueWARD = Number(valueWei) / 1e18;
+      if (valueWei === 0n) {
+        valueDisplay = '0 WARD';
+      } else if (valueWARD >= 0.000001) {
+        // Show WARD for amounts >= 1 uWARD (microWARD)
+        valueDisplay = `${valueWARD.toFixed(6)} WARD`;
+      } else {
+        // Show uWARD for small amounts to avoid "0.000000 WARD"
+        const valueuWARD = Number(valueWei) / 1e12; // Convert weiWARD to microWARD
+        valueDisplay = `${valueuWARD.toFixed(2)} uWARD`;
+      }
     }
 
     const gasPriceGwei = tx.gasPrice ? (Number(BigInt(tx.gasPrice)) / 1e9).toFixed(2) : '0';
@@ -657,13 +683,33 @@ export class InfoPopup {
       }
     }
 
+    // Halo events carry their own detail: which vault action, and who with
+    let haloSection = '';
+    if (isHalo && tx.halo) {
+      const counterpartyLabel = tx.halo.event === 'SessionKeySet' ? 'Session Key'
+        : tx.halo.event === 'Withdrawn' ? 'Sent To'
+        : 'Operator';
+      haloSection = `
+        ${tx.halo.counterparty ? `
+        <div class="stat-row">
+          <div class="stat-box stat-box-full">
+            <div class="stat-label">${counterpartyLabel}</div>
+            <div class="stat-value hash">
+              <a href="${explorer}/address/${tx.halo.counterparty}" target="_blank">${this.escapeHtml(tx.halo.counterparty)}</a>
+            </div>
+          </div>
+        </div>
+        ` : ''}
+      `;
+    }
+
     this.container.innerHTML = `
-      ${this.createGameFrame(config.label.toUpperCase(), icon, config.color)}
+      ${this.createGameFrame(label.toUpperCase(), icon, config.color)}
         <div class="stat-row">
           <div class="stat-box stat-box-full">
             <div class="stat-label">Transaction Hash</div>
             <div class="stat-value hash">
-              <a href="${this.explorerBaseUrl}/tx/${tx.hash}" target="_blank">${tx.hash}</a>
+              <a href="${explorer}/tx/${tx.hash}" target="_blank">${tx.hash}</a>
             </div>
           </div>
         </div>
@@ -672,13 +718,13 @@ export class InfoPopup {
           <div class="stat-box">
             <div class="stat-label">Type</div>
             <div class="type-badge" style="color: ${config.color}; border-color: ${config.color}66; background: rgba(${this.hexToRgb(config.color)}, 0.15);">
-              ${icon}${config.label}
+              ${icon}${isHalo ? config.label : label}
             </div>
           </div>
           <div class="stat-box">
             <div class="stat-label">Block</div>
             <div class="stat-value highlight">
-              <a href="${this.explorerBaseUrl}/block/${tx.blockNumber}" target="_blank" style="color: #fbbf24;">
+              <a href="${explorer}/block/${tx.blockNumber}" target="_blank" style="color: #fbbf24;">
                 #${tx.blockNumber.toLocaleString()}
               </a>
             </div>
@@ -686,12 +732,13 @@ export class InfoPopup {
         </div>
         
         ${agentSection}
+        ${haloSection}
         
         <div class="stat-row">
           <div class="stat-box stat-box-full">
             <div class="stat-label">From</div>
             <div class="stat-value hash">
-              <a href="${this.explorerBaseUrl}/address/${tx.from}" target="_blank">${tx.from}</a>
+              <a href="${explorer}/address/${tx.from}" target="_blank">${tx.from}</a>
             </div>
           </div>
         </div>
@@ -701,7 +748,7 @@ export class InfoPopup {
             <div class="stat-label">${tx.to ? 'To' : 'Contract Creation'}</div>
             ${tx.to ? `
               <div class="stat-value hash">
-                <a href="${this.explorerBaseUrl}/address/${tx.to}" target="_blank">${tx.to}</a>
+                <a href="${explorer}/address/${tx.to}" target="_blank">${tx.to}</a>
               </div>
             ` : `
               <div class="stat-value" style="color: #f472b6; font-family: 'Press Start 2P', cursive; font-size: 10px;">
@@ -713,17 +760,17 @@ export class InfoPopup {
         
         <div class="stat-row">
           <div class="stat-box">
-            <div class="stat-label">Value</div>
-            <div class="stat-value highlight" style="color: #34d399;">${valueDisplay}</div>
+            <div class="stat-label">${isHalo ? 'Amount' : 'Value'}</div>
+            <div class="stat-value highlight" style="color: ${isHalo ? '#00b4e6' : '#34d399'};">${valueDisplay}</div>
           </div>
           <div class="stat-box">
-            <div class="stat-label">Gas Price</div>
-            <div class="stat-value">${gasPriceGwei} Gwei</div>
+            <div class="stat-label">${isHalo ? 'Network' : 'Gas Price'}</div>
+            <div class="stat-value">${isHalo ? 'Base' : `${gasPriceGwei} Gwei`}</div>
           </div>
         </div>
         
-        <a href="${this.explorerBaseUrl}/tx/${tx.hash}" target="_blank" class="explorer-link">
-          View on Explorer
+        <a href="${explorer}/tx/${tx.hash}" target="_blank" class="explorer-link">
+          ${isHalo ? 'View on Basescan' : 'View on Explorer'}
         </a>
       </div>
     `;
@@ -919,6 +966,12 @@ export class InfoPopup {
         color: '#ff503c',
         icon: TRANSACTION_ICONS.inference,
         description: `<strong>Proof of Inference</strong> is Warden's onchain audit trail for AI Agents that links payments to user prompts and inferences.<br><br>When a user submits a prompt, Warden generates a hash of the prompt together with the hash of the returned inference, and stores both in an onchain proof. Developers can generate the same hash offchain and match it against the onchain record, creating a transparent trail showing that a specific inference request was made and paid for.<br><br><em>Visual:</em> Dramatic red fire/explosion effects — the largest, most intense comets with fire trails and plasma explosions.`
+      },
+      halo: {
+        title: 'Halo Vault',
+        color: '#00b4e6',
+        icon: TRANSACTION_ICONS.halo,
+        description: `<strong>Halo</strong> is a peer-to-peer inference marketplace on Base. Its vault escrows the USDC that pays for inference: a consumer funds credit, an operator reserves against it for a session, and redeems payment for the inferences it served. Unspent reservations expire and are released back.<br><br>Wardenverse watches every interaction with the vault at <span style="font-size: 11px;">${HALO_VAULT_ADDRESS}</span> and shows it alongside Warden activity.<br><br><em>Visual:</em> Cyan comets that leave a Halo ring behind them — the bigger the payment, the bigger the comet.`
       }
     };
 

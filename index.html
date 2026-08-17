@@ -95,6 +95,11 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
+    .stat-value.halo-value {
+      background: linear-gradient(135deg, #00b4e6, #1c64f2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
     .stat-label {
       font-size: 9px;
       color: #888;
@@ -408,6 +413,9 @@
         width: 100%;
         justify-content: space-between;
         margin-top: 8px;
+      }
+      #halo-stat {
+        display: none;
       }
       .stat {
         padding: 4px 8px;
@@ -784,6 +792,10 @@
           <span class="stat-value" id="tps">--</span>
           <span class="stat-label">TPS</span>
         </div>
+        <div class="stat" id="halo-stat">
+          <span class="stat-value halo-value" id="halo-volume">0</span>
+          <span class="stat-label">Halo Paid</span>
+        </div>
         <div class="stat" id="laser-score-container" style="display: none;">
           <span class="stat-value" id="laser-score">0</span>
           <span class="stat-multiplier" id="laser-multiplier" style="display: none;"></span>
@@ -947,6 +959,36 @@
             <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 32px; height: 32px; background: radial-gradient(circle, rgba(255, 80, 60, 0.5) 0%, transparent 70%); pointer-events: none;"></div>
           </div>
           <span class="legend-text">Proof of Inference</span>
+        </div>
+        <div class="legend-item" style="cursor: pointer;" onclick="document.dispatchEvent(new CustomEvent('showLegendInfo', {detail: 'halo'}))">
+          <div class="legend-sprite halo-sprite">
+            <!-- Pixel-art Halo ring sprite - cyan/blue theme -->
+            <svg width="24" height="24" viewBox="0 0 8 8" style="image-rendering: pixelated;">
+              <rect x="2" y="1" width="4" height="1" fill="#00b4e6"/>
+              <rect x="1" y="2" width="1" height="1" fill="#00b4e6"/>
+              <rect x="2" y="2" width="4" height="1" fill="#5bb0ee"/>
+              <rect x="6" y="2" width="1" height="1" fill="#00b4e6"/>
+              <rect x="1" y="3" width="1" height="1" fill="#5bb0ee"/>
+              <rect x="2" y="3" width="1" height="1" fill="#1c64f2"/>
+              <rect x="3" y="3" width="2" height="1" fill="#0a0a12"/>
+              <rect x="5" y="3" width="1" height="1" fill="#1c64f2"/>
+              <rect x="6" y="3" width="1" height="1" fill="#5bb0ee"/>
+              <rect x="1" y="4" width="1" height="1" fill="#5bb0ee"/>
+              <rect x="2" y="4" width="1" height="1" fill="#1c64f2"/>
+              <rect x="3" y="4" width="2" height="1" fill="#0a0a12"/>
+              <rect x="5" y="4" width="1" height="1" fill="#1c64f2"/>
+              <rect x="6" y="4" width="1" height="1" fill="#5bb0ee"/>
+              <rect x="1" y="5" width="1" height="1" fill="#00b4e6"/>
+              <rect x="2" y="5" width="4" height="1" fill="#5bb0ee"/>
+              <rect x="6" y="5" width="1" height="1" fill="#00b4e6"/>
+              <rect x="2" y="6" width="4" height="1" fill="#00b4e6"/>
+              <!-- Ring highlight -->
+              <rect x="3" y="1" width="1" height="1" fill="#ffffff" style="animation: pixel-sprite-pulse 1.4s ease-in-out infinite;"/>
+            </svg>
+            <!-- Glow effect - Halo cyan -->
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 32px; height: 32px; background: radial-gradient(circle, rgba(0, 180, 230, 0.5) 0%, transparent 70%); pointer-events: none;"></div>
+          </div>
+          <span class="legend-text">Halo Vault</span>
         </div>
         <div class="legend-footer">
           <span>Click any item for more info</span>
