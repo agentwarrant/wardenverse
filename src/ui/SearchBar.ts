@@ -71,6 +71,7 @@ export class SearchBar {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       padding: 8px 32px 8px 32px;
       width: 220px;
+      box-sizing: border-box;
       transition: all 0.2s ease;
       outline: none;
     `;
@@ -205,13 +206,16 @@ export class SearchBar {
       }
       @media (max-width: 768px) {
         #search-container {
-          margin-left: 10px;
+          margin-left: 0;
           order: 10;
-          width: 100%;
-          margin-top: 8px;
+          flex: 1 1 140px;
+          min-width: 120px;
+          width: auto;
+          margin-top: 0;
         }
         #search-container input {
-          width: 100%;
+          width: 100% !important;
+          min-width: 0;
           font-size: 11px;
           padding: 6px 28px 6px 28px;
         }
@@ -221,6 +225,20 @@ export class SearchBar {
           right: 10px;
           top: auto;
           margin-top: 2px;
+        }
+      }
+      /* Narrow phones: let the field shrink so the whole control row fits on
+         one line next to the chain label, music and laser buttons */
+      @media (max-width: 480px) {
+        #search-container {
+          flex: 1 1 90px;
+          min-width: 80px;
+        }
+        #search-container input {
+          width: 100% !important;
+          min-width: 0;
+          font-size: 10px;
+          padding: 5px 24px 5px 26px;
         }
       }
     `;

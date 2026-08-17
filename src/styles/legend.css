@@ -279,6 +279,7 @@
 /* Legend text with pixel font */
 .legend-text {
   font-family: 'Press Start 2P', monospace;
+  line-height: 1.5;
   color: #e0e0e0;
   font-size: 9px;
   letter-spacing: 0.5px;
@@ -335,11 +336,11 @@
 /* Responsive adjustments */
 @media (max-width: 768px) {
   #legend {
-    top: 85px;
+    top: 10px;
     bottom: auto;
     right: 5px;
     left: auto;
-    min-width: 110px;
+    min-width: 150px;
     max-width: 130px;
   }
   
@@ -373,11 +374,11 @@
 
 @media (max-width: 480px) {
   #legend {
-    top: 80px;
+    top: 10px;
     bottom: auto;
     right: 4px;
     left: auto;
-    min-width: 100px;
+    min-width: 144px;
     max-width: 120px;
   }
   
@@ -412,11 +413,14 @@
 /* Landscape mobile - keep legend on side but smaller */
 @media (max-width: 896px) and (orientation: landscape) {
   #legend {
-    top: 60px;
+    top: 8px;
     bottom: auto;
     right: 8px;
     left: auto;
     max-width: 140px;
+    /* Leave room for the agent ticker; scroll rather than clip the last items */
+    max-height: calc(100% - 60px);
+    overflow-y: auto;
   }
   
   .legend-text {

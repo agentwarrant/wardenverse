@@ -362,8 +362,11 @@ letter-spacing: 0.5px;
 /* Mobile responsive */
 @media (max-width: 768px) {
 #burn-o-meter {
+/* Absolute (not fixed) so it sits inside the canvas area, below whatever
+   height the header has wrapped to, instead of behind it */
+position: absolute;
 bottom: auto;
-top: 85px;
+top: 10px;
 left: 5px;
 right: auto;
 min-width: 110px;
@@ -404,7 +407,8 @@ font-size: 4px;
 
 @media (max-width: 480px) {
 #burn-o-meter {
-top: 80px;
+position: absolute;
+top: 10px;
 left: 4px;
 min-width: 100px;
 }
@@ -445,7 +449,8 @@ font-size: 3px;
 /* Landscape mobile */
 @media (max-width: 896px) and (orientation: landscape) {
 #burn-o-meter {
-top: 60px;
+position: absolute;
+top: 8px;
 left: 8px;
 bottom: auto;
 min-width: 100px;

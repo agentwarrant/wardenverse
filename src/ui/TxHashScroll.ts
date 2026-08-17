@@ -208,6 +208,20 @@ export class TxHashScroll {
           gap: 6px !important;
         }
       }
+      /* Landscape mobile: move the feed left so it can't sit on top of the legend */
+      @media (max-width: 896px) and (orientation: landscape) {
+        #tx-hash-scroll-container {
+          left: 8px !important;
+          right: auto !important;
+          bottom: 56px !important;
+          width: 150px;
+        }
+
+        #tx-hash-scroll-content {
+          max-height: 90px !important;
+        }
+      }
+
       @media (max-width: 480px) {
         #tx-hash-scroll-container {
           bottom: 55px !important;

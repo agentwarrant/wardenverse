@@ -111,6 +111,10 @@
       position: relative;
       overflow: hidden;
     }
+    /* Full-bleed canvas app - nothing should ever scroll it sideways */
+    html, body {
+      overflow-x: hidden;
+    }
     #main-canvas {
       position: absolute;
       top: 0;
@@ -408,18 +412,27 @@
         font-size: 14px;
       }
       #stats {
-        gap: 8px;
+        gap: 6px;
         margin-left: 0;
         width: 100%;
         justify-content: space-between;
-        margin-top: 8px;
+        margin-top: 4px;
+        flex-wrap: wrap;
+        order: 5;
       }
-      #halo-stat {
-        display: none;
+      /* Chain label, music, laser and search share one row below the stats */
+      #chain-label,
+      #music-container,
+      #laser-toggle {
+        order: 10;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
       }
       .stat {
-        padding: 4px 8px;
-        flex: 1;
+        padding: 4px 6px;
+        /* Three per row, wrapping to a second row - keeps every stat legible
+           rather than squeezing six into one line */
+        flex: 1 1 calc(33.333% - 6px);
         min-width: 0;
       }
       .stat-value {
@@ -541,12 +554,26 @@
     /* Landscape mobile adjustments */
     @media (max-width: 896px) and (orientation: landscape) {
       #header {
-        padding: 6px 15px;
-        flex-wrap: nowrap;
+        padding: 6px 12px;
+        flex-wrap: wrap;
+        row-gap: 6px;
+      }
+      /* The wordmark is the first thing to go - the logo still identifies the app */
+      #logo-text {
+        display: none;
       }
       #stats {
         width: auto;
         margin-top: 0;
+        margin-left: auto;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .stat {
+        padding: 4px 8px;
+      }
+      .stat-value {
+        font-size: 13px;
       }
       #overlay {
         max-width: 250px;
@@ -635,8 +662,10 @@
       }
     }
     @media (max-width: 480px) {
+      /* Shown, not hidden - the chain being viewed is a detail worth keeping */
       #chain-label {
-        display: none !important;
+        font-size: 9px !important;
+        padding: 3px 8px !important;
       }
       #music-toggle {
         padding: 3px 8px !important;
